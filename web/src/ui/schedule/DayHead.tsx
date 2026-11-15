@@ -2,7 +2,7 @@ import { BedDouble } from "lucide-react";
 import type { Day } from "../../domain/types";
 import { describe, spotsForCity, weatherFor, type Forecast } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
-import { dayLabel, stamp } from "../format";
+import { dayLabel, parseDay, stamp } from "../format";
 
 export function DayHead({ day, forecast }: { day: Day; forecast: Forecast | null }) {
   const spots = spotsForCity(day.city);
@@ -37,7 +37,7 @@ export function DayHead({ day, forecast }: { day: Day; forecast: Forecast | null
           <div className="wx-foot"><span>Open-Meteo {forecast ? stamp(forecast.fetchedAt) : ""} 기준</span><span>바람 km/h</span></div>
         </>
       ) : (
-        <p className="wx-empty">예보는 16일 전부터 나와요. {forecast ? `마지막 확인 ${stamp(forecast.fetchedAt)}` : ""}</p>
+        <p className="wx-empty">{forecastHint(day.date)}</p>
       ))}
       {day.memo && <p className="day-memo keep"><Linkified text={day.memo} /></p>}
     </div>
@@ -57,4 +57,13 @@ export function Linkified({ text }: { text: string }) {
       })}
     </>
   );
+}
+
+/** "12월 3일 예보는 11월 17일부터 나와요" — forecasts reach 16 days ahead. */
+export function forecastHint(date: string): string {
+  const d = parseDay(date);
+  const from = new Date(d);
+  from.setDate(d.getDate() - 15);
+  const md = (x: Date) => `${x.getMonth() + 1}월 ${x.getDate()}일`;
+  return from <= new Date() ? `${md(d)} 예보를 아직 받지 못했어요. 연결되면 다시 불러와요.` : `${md(d)} 예보는 ${md(from)}부터 나와요`;
 }

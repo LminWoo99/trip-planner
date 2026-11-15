@@ -19,6 +19,7 @@ export function PlaceSearch({ id, value, city, located, placeholder, onText, onP
   const [list, setList] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<"" | "busy" | "error">("");
+  const [errorText, setErrorText] = useState("");
   const seq = useRef(0);
   const typed = useRef(false);
 
@@ -27,15 +28,16 @@ export function PlaceSearch({ id, value, city, located, placeholder, onText, onP
     const q = value.trim();
     if (q.length < 2) { setList([]); return; }
     const mine = ++seq.current;
+    // wait until typing pauses (Korean input changes many times per syllable)
     const t = setTimeout(async () => {
       setState("busy");
       try {
-        const res = await session.current.suggest(q, city);
+        const res = await withRetry(() => session.current.suggest(q, city));
         if (mine === seq.current) { setList(res); setState(""); setOpen(true); }
-      } catch {
-        if (mine === seq.current) setState("error");
+      } catch (e) {
+        if (mine === seq.current) { setErrorText(describeError(e)); setState("error"); }
       }
-    }, 250);
+    }, 500);
     return () => clearTimeout(t);
   }, [value, city]);
 
@@ -45,10 +47,11 @@ export function PlaceSearch({ id, value, city, located, placeholder, onText, onP
     typed.current = false;
     setState("busy");
     try {
-      const place = await session.current.select(s);
-      setState(place ? "" : "error");
-      if (place) onPick(place);
-    } catch {
+      const place = await withRetry(() => session.current.select(s));
+      if (place) { setState(""); onPick(place); }
+      else { setErrorText("이 장소는 위치 정보가 없어요. 다른 후보를 골라 주세요."); setState("error"); }
+    } catch (e) {
+      setErrorText(describeError(e));
       setState("error");
     }
   }
@@ -56,7 +59,7 @@ export function PlaceSearch({ id, value, city, located, placeholder, onText, onP
   const hint = !hasGoogleKey()
     ? "장소 검색을 쓰려면 Google 지도 키가 필요해요"
     : state === "busy" ? "찾는 중이에요"
-    : state === "error" ? "검색하지 못했어요. 연결을 확인하고 다시 해 주세요."
+    : state === "error" ? errorText
     : located ? "지도에 표시되는 장소예요"
     : "이름을 입력하고 목록에서 고르면 지도에 표시돼요";
 
@@ -100,4 +103,26 @@ export function PlaceSearch({ id, value, city, located, placeholder, onText, onP
       <small style={{ fontSize: 12, color: state === "error" ? "var(--danger)" : "var(--ink3)" }}>{hint}</small>
     </div>
   );
+}
+
+const isQuota = (e: unknown) => /RESOURCE_EXHAUSTED|OVER_QUERY_LIMIT|429|quota/i.test(String((e as Error)?.message ?? e));
+
+/** One retry after a short pause when Google says the per-minute limit was hit. */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!isQuota(e)) throw e;
+    await new Promise((r) => setTimeout(r, 1200));
+    return fn();
+  }
+}
+
+function describeError(e: unknown): string {
+  const msg = String((e as Error)?.message ?? e);
+  console.warn("[place search]", msg);
+  if (isQuota(e)) return "Google 검색 한도에 걸렸어요. 잠시 뒤 다시 입력해 주세요.";
+  if (/REQUEST_DENIED|PERMISSION_DENIED|API key|referer|referrer|ApiNotActivated|billing/i.test(msg)) return "지도 키 설정을 확인해 주세요. (Google Cloud 키 제한·결제)";
+  if (!navigator.onLine) return "오프라인이라 검색할 수 없어요.";
+  return "검색하지 못했어요. 연결을 확인하고 다시 해 주세요.";
 }

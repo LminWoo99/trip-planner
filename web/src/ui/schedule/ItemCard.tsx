@@ -1,7 +1,9 @@
-import { AlignLeft, Bus, Car, Check, Footprints, Plane } from "lucide-react";
+import { useState } from "react";
+import { AlignLeft, Bus, Car, Check, ChevronRight, Footprints, Plane, Route } from "lucide-react";
 import type { Item } from "../../domain/types";
-import { estimateLeg, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
+import { courseKm, estimateLeg, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
 import { CATEGORY_ICON } from "../icons";
+import { PhotoStrip } from "../Photos";
 
 const RAIL_ICON = { flight: Plane, move: Bus } as const;
 
@@ -27,11 +29,16 @@ interface Props {
   n: number | null;
   onOpen: () => void;
   onToggle: () => void;
+  onRoute?: () => void;
   className?: string;
 }
 
-export function ItemRow({ item, n, onOpen, onToggle, className = "" }: Props) {
+const isLongMemo = (m: string) => m.length > 70 || m.split("\n").length > 2;
+
+export function ItemRow({ item, n, onOpen, onToggle, onRoute, className = "" }: Props) {
   const CatIcon = CATEGORY_ICON[item.cat];
+  const [memoOpen, setMemoOpen] = useState(false);
+  const km = item.stops.length ? courseKm(item.stops) : 0;
   return (
     <div className={`tl-row ${className}`}>
       <div className="tl-rail">
@@ -48,11 +55,21 @@ export function ItemRow({ item, n, onOpen, onToggle, className = "" }: Props) {
               <CatIcon className="icon" /><span>{item.place}</span>
             </a>
           )}
-          {item.memo && (
-            <button className="c-memo" style={{ textAlign: "left" }} onClick={onOpen}>
-              <AlignLeft className="icon" /><span>{item.memo}</span>
+          {item.stops.length > 0 && (
+            <button className="c-route" onClick={onRoute ?? onOpen}>
+              <Route className="icon" /><span>경유 {item.stops.length}곳{km > 0 ? `, 약 ${formatKm(km)}` : ""}</span><b>코스 보기</b><ChevronRight className="icon" />
             </button>
           )}
+          {item.memo && (
+            <div className="c-memo">
+              <AlignLeft className="icon" />
+              <span className={memoOpen ? "open" : ""}>{item.memo}</span>
+            </div>
+          )}
+          {item.memo && isLongMemo(item.memo) && (
+            <button className="memo-more" onClick={() => setMemoOpen(!memoOpen)} aria-expanded={memoOpen}>{memoOpen ? "접기" : "메모 더보기"}</button>
+          )}
+          <PhotoStrip itemId={item.id} photos={item.photos} />
         </div>
         <button className="check" role="checkbox" aria-checked={item.done} aria-label={`${item.title} 완료`} onClick={onToggle}>
           <span className="box"><Check className="icon" /></span>
