@@ -1,18 +1,24 @@
-import { BedDouble, Wallet } from "lucide-react";
+import { useState } from "react";
+import { BedDouble, Pencil, Wallet } from "lucide-react";
 import { formatApproxKrw, formatKrw, type PlannedCost } from "../../domain/money";
 import type { Day } from "../../domain/types";
 import { describe, spotsForCity, weatherFor, type Forecast } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { dayLabel, parseDay, stamp } from "../format";
 
-export function DayHead({ day, forecast, planned, spent, basis }: { day: Day; forecast: Forecast | null; planned: PlannedCost; spent: number; basis: string | null }) {
+export function DayHead({ day, forecast, planned, spent, basis, onEdit }: { day: Day; forecast: Forecast | null; planned: PlannedCost; spent: number; basis: string | null; onEdit: () => void }) {
+  const [memoOpen, setMemoOpen] = useState(false);
+  const longMemo = day.memo.length > 120 || day.memo.split("\n").length > 3;
   const spots = spotsForCity(day.city);
   const cells = spots.map((s) => ({ spot: s, w: weatherFor(forecast, s.id, day.date) }));
   const hasAny = cells.some((c) => c.w);
 
   return (
     <div className="day-head">
-      <h2 className="keep">{day.title || `${day.n}일차`}</h2>
+      <div className="day-title-row">
+        <h2 className="keep">{day.title || `${day.n}일차`}</h2>
+        <button className="icon-btn" onClick={onEdit} aria-label="하루 정보 고치기"><Pencil className="icon" style={{ width: 17, height: 17 }} /></button>
+      </div>
       <div className="day-meta">
         <span>{dayLabel(day.date)}</span>
         {day.stay && <span><BedDouble className="icon" />{day.stay}</span>}
@@ -47,7 +53,10 @@ export function DayHead({ day, forecast, planned, spent, basis }: { day: Day; fo
       ) : (
         <p className="wx-empty">{forecastHint(day.date)}</p>
       ))}
-      {day.memo && <p className="day-memo keep"><Linkified text={day.memo} /></p>}
+      {day.memo && <p className={`day-memo keep ${longMemo && !memoOpen ? "clamped" : ""}`}><Linkified text={day.memo} /></p>}
+      {day.memo && longMemo && (
+        <button className="memo-more" style={{ marginLeft: 0 }} onClick={() => setMemoOpen(!memoOpen)} aria-expanded={memoOpen}>{memoOpen ? "접기" : "메모 더보기"}</button>
+      )}
     </div>
   );
 }

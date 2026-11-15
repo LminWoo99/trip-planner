@@ -73,7 +73,7 @@ export function EditList({ entries, numbers, selected, onToggleSelect, onOpenIte
                 {(handle) => (
                   <>
                     <span />
-                    <ForkBlock entry={e} handle={handle} onOpenItem={onOpenItem} onAddItem={onAddItem} onEditGroup={onEditGroup} />
+                    <ForkBlock entry={e} handle={handle} selected={selected} onToggleSelect={onToggleSelect} onOpenItem={onOpenItem} onAddItem={onAddItem} onEditGroup={onEditGroup} />
                     <span />
                   </>
                 )}
@@ -101,9 +101,11 @@ function SortableRow({ id, label, children, className = "e-row", grip }: { id: s
   return <div ref={setNodeRef} style={style} className={`${className} ${isDragging ? "dragging" : ""}`}>{children(handle)}</div>;
 }
 
-function ForkBlock({ entry, handle, onOpenItem, onAddItem, onEditGroup }: {
+function ForkBlock({ entry, handle, selected, onToggleSelect, onOpenItem, onAddItem, onEditGroup }: {
   entry: Extract<DayEntry, { kind: "fork" }>;
   handle: ReactNode;
+  selected: ReadonlySet<string>;
+  onToggleSelect: (id: string) => void;
   onOpenItem: (item: Item) => void;
   onAddItem: (group: string, branch: BranchKey) => void;
   onEditGroup: (groupId: string) => void;
@@ -146,6 +148,9 @@ function ForkBlock({ entry, handle, onOpenItem, onAddItem, onEditGroup }: {
                 <SortableRow key={it.id} id={it.id} label={it.title} className="e-step">
                   {(h) => (
                     <>
+                      <button className="sel" style={{ width: 36, marginLeft: -8 }} role="checkbox" aria-checked={selected.has(it.id)} aria-label={`${it.title} 선택`} onClick={() => onToggleSelect(it.id)}>
+                        <span className="box"><Check className="icon" /></span>
+                      </button>
                       {num !== null ? <span className="p-mk">{num}</span> : <span className="p-mk dot" />}
                       <div className="e-txt">
                         <button className="e-title" style={{ textAlign: "left", width: "100%" }} onClick={() => onOpenItem(it)}>{it.title}</button>

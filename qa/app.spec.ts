@@ -167,8 +167,9 @@ test.describe("일정", () => {
     await first.getByRole("checkbox").click();
     await page.getByRole("button", { name: "복사" }).click();
     await shot(page, "43-copy-sheet");
-    await page.getByRole("button", { name: /^5일차/ }).last().click();
-    await expect(page.locator(".edit-list .e-title").getByText(title, { exact: true })).toHaveCount(1);
+    await page.getByRole("dialog").getByRole("button", { name: /^5일차/ }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator(".edit-list .e-title").filter({ hasText: new RegExp(`^${title}$`) })).toHaveCount(1);
     await page.getByRole("button", { name: "완료" }).click();
     await openDay(page, 5);
     const copied = page.locator(".card").filter({ has: page.getByRole("button", { name: title, exact: true }) });
@@ -178,6 +179,52 @@ test.describe("일정", () => {
     await page.getByRole("button", { name: "삭제" }).click();
     await page.getByRole("button", { name: "삭제하기" }).click();
     await expect(copied).toHaveCount(0);
+  });
+
+  test("복사할 때 갈림길이 있는 날은 플랜을 골라 그 안에 넣는다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 4);
+    await page.getByRole("button", { name: "편집" }).click();
+    const first = page.locator(".edit-list > .e-row").first();
+    const title = (await first.locator(".e-title").textContent())!.trim();
+    await first.getByRole("checkbox").click();
+    await page.getByRole("button", { name: "복사" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /^2일차/ }).click();
+    const planB = page.getByRole("dialog").getByRole("button", { name: /^플랜 B/ });
+    await expect(planB).toBeVisible();
+    await shot(page, "44-copy-into-plan");
+    await planB.click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "완료" }).click();
+    await openDay(page, 2);
+    const fork = page.locator("section.fork").first();
+    await fork.getByRole("tab", { name: /B/ }).click();
+    await expect(fork.locator(".p-title").getByText(title, { exact: true })).toBeVisible();
+    // clean up: open the copy from the edit list (plan B tab) and delete it
+    await page.getByRole("button", { name: "편집" }).click();
+    await page.locator(".e-fork").getByRole("tab", { name: "플랜 B" }).click();
+    await page.locator(".e-fork").getByRole("button", { name: title, exact: true }).click();
+    await page.getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.locator(".e-fork").getByRole("button", { name: title, exact: true })).toHaveCount(0);
+  });
+
+  test("DAY 제목 옆 연필로 제목·메모를 고치고 긴 메모는 접혀 보인다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 3);
+    await expect(page.getByRole("button", { name: "메모 더보기" }).first()).toBeVisible();
+    await page.getByRole("button", { name: "하루 정보 고치기" }).click();
+    const before = await page.locator("#day-memo").inputValue();
+    await page.locator("#day-memo").fill(before + "\nQA 메모 추가");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await page.getByRole("button", { name: "메모 더보기" }).first().click();
+    await expect(page.locator(".day-memo")).toContainText("QA 메모 추가");
+    await shot(page, "15-day-edit");
+    // restore
+    await page.getByRole("button", { name: "하루 정보 고치기" }).click();
+    await page.locator("#day-memo").fill(before);
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.locator(".day-memo")).not.toContainText("QA 메모 추가");
   });
 
   test("편집 모드에서 손잡이를 끌어 순서를 바꾼다", async ({ page }) => {
