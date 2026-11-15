@@ -4,7 +4,7 @@ import type { BranchKey, Group, Item } from "../../domain/types";
 import { buildDay, effectiveBranch, effectiveItems } from "../../domain/timeline";
 import { isSameSpot, type LatLng } from "../../domain/geo";
 import { plannedCost, spentOnDay } from "../../domain/money";
-import { create, remove, update, useApp } from "../../app/store";
+import { remove, update, useApp } from "../../app/store";
 import { weatherFor } from "../../infra/weather";
 import { attempt } from "../toast";
 import { Sheet } from "../Sheet";
@@ -22,6 +22,8 @@ const EditList = lazy(() => import("./EditList").then((m) => ({ default: m.EditL
 const ItemSheet = lazy(() => import("./ItemSheet").then((m) => ({ default: m.ItemSheet })));
 const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.GroupSheet })));
 const RouteSheet = lazy(() => import("./RouteSheet").then((m) => ({ default: m.RouteSheet })));
+const MoveCopySheet = lazy(() => import("./MoveCopySheet").then((m) => ({ default: m.MoveCopySheet })));
+const DaySheet = lazy(() => import("./DaySheet").then((m) => ({ default: m.DaySheet })));
 
 const located = (i: Item): LatLng | null => (i.lat !== null && i.lng !== null ? { lat: i.lat, lng: i.lng } : null);
 const DAY_KEY = "schedule-day";
@@ -37,6 +39,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [groupSheet, setGroupSheet] = useState<{ group: Group | null } | null>(null);
   const [bulk, setBulk] = useState<"move" | "copy" | "delete" | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
+  const [editingDay, setEditingDay] = useState(false);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -153,7 +156,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         }}
       >
         <div className="day-top">
-          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} basis={firstFork && firstFork.kind === "fork" ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected}` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`) : null} />}
+          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={firstFork && firstFork.kind === "fork" ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected}` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`) : null} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
           <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
         </div>
@@ -188,34 +191,14 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
       <Suspense fallback={null}>
         {itemSheet && <ItemSheet item={itemSheet.item} target={itemSheet.target} onClose={() => setItemSheet(null)} />}
         {groupSheet && <GroupSheet group={groupSheet.group} day={day.id} onClose={() => setGroupSheet(null)} />}
+        {editingDay && <DaySheet day={day} onClose={() => setEditingDay(false)} />}
         {routeId && !itemSheet && (() => {
           const it = snapshot.items.find((x) => x.id === routeId);
           return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;
         })()}
       </Suspense>
       {(bulk === "move" || bulk === "copy") && (
-        <Sheet title={`${selected.size}개를 어느 날로 ${bulk === "move" ? "옮길까요" : "복사할까요"}?`} onClose={() => setBulk(null)}>
-          {bulk === "copy" && <p className="keep" style={{ margin: 0, fontSize: 13, color: "var(--ink2)" }}>지금 날짜에는 그대로 두고, 고른 날 맨 뒤에 같은 일정을 하나씩 더 만들어요. 사진과 완료 표시는 복사하지 않아요.</p>}
-          <div className="list">
-            {days.filter((d) => bulk === "copy" || d.id !== day.id).map((d) => (
-              <button key={d.id} className="li" onClick={async () => {
-                const base = Math.max(0, ...snapshot.items.filter((i) => i.day === d.id && !i.group).map((i) => i.order), ...snapshot.groups.filter((g) => g.day === d.id).map((g) => g.order));
-                // keep the on-screen order of the selection
-                const picked = snapshot.items.filter((i) => selected.has(i.id)).sort((a, b) => a.order - b.order);
-                const ok = bulk === "move"
-                  ? await attempt(() => Promise.all(picked.map((it, k) => update("items", it.id, { day: d.id, order: base + k + 1, group: "", branch: "" }))), `${d.n}일차로 옮겼어요`)
-                  : await attempt(() => Promise.all(picked.map((it, k) => create("items", {
-                      day: d.id, order: base + k + 1, group: "", branch: "", done: false,
-                      time: it.time, cat: it.cat, title: it.title, place: it.place, placeId: it.placeId,
-                      lat: it.lat ?? 0, lng: it.lng ?? 0, memo: it.memo, cost: it.cost, cur: it.cur ?? "", link: it.link, stops: it.stops,
-                    }))), `${d.n}일차에 복사했어요`);
-                if (ok) { setBulk(null); setSelected(new Set()); }
-              }}>
-                <div><div className="li-title">{d.n}일차 {d.title}{d.id === day.id && <span style={{ fontWeight: 400, color: "var(--ink3)" }}> (지금 날)</span>}</div><div className="li-sub">{shortDay(d.date)}</div></div>
-              </button>
-            ))}
-          </div>
-        </Sheet>
+        <Suspense fallback={null}><MoveCopySheet mode={bulk} ids={selected} currentDay={day.id} onClose={() => setBulk(null)} onDone={() => { setBulk(null); setSelected(new Set()); }} /></Suspense>
       )}
       {bulk === "delete" && (
         <Sheet
