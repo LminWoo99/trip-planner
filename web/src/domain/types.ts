@@ -78,6 +78,8 @@ export interface Item {
   readonly group: string | null;
   readonly branch: BranchKey | null;
   readonly stops: readonly Stop[];
+  /** file names of photos attached to the memo */
+  readonly photos: readonly string[];
 }
 
 export interface Place {

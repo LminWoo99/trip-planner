@@ -94,6 +94,29 @@ test.describe("일정", () => {
     await expect(page.locator(".card", { hasText: "QA 테스트 일정 수정" })).toHaveCount(0);
   });
 
+  test("메모에 사진을 붙이면 카드에 썸네일이 보이고 눌러서 크게 본다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 4);
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await page.getByLabel("제목").fill("QA 사진 일정");
+    await page.locator(".photo-add input[type=file]").setInputFiles("qa/fixtures/photo.png");
+    await expect(page.locator(".photo-strip.edit img")).toHaveCount(1);
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    const card = page.locator(".card", { hasText: "QA 사진 일정" });
+    await expect(card.locator(".photo-strip img")).toHaveCount(1);
+    await expect.poll(() => card.locator(".photo-strip img").evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    await shot(page, "45-photo-card");
+    await card.getByRole("button", { name: "사진 1 크게 보기" }).click();
+    await expect(page.getByRole("dialog", { name: "사진 보기" }).locator("img")).toBeVisible();
+    await shot(page, "46-photo-viewer");
+    await page.getByRole("button", { name: "닫기" }).click();
+    // clean up
+    await card.getByRole("button", { name: "QA 사진 일정" }).click();
+    await page.getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.locator(".card", { hasText: "QA 사진 일정" })).toHaveCount(0);
+  });
+
   test("편집 모드에서 손잡이를 끌어 순서를 바꾼다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 4);

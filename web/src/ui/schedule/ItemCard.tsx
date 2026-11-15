@@ -3,6 +3,7 @@ import { AlignLeft, Bus, Car, Check, ChevronRight, Footprints, Plane, Route } fr
 import type { Item } from "../../domain/types";
 import { courseKm, estimateLeg, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
 import { CATEGORY_ICON } from "../icons";
+import { PhotoStrip } from "../Photos";
 
 const RAIL_ICON = { flight: Plane, move: Bus } as const;
 
@@ -68,6 +69,7 @@ export function ItemRow({ item, n, onOpen, onToggle, onRoute, className = "" }: 
           {item.memo && isLongMemo(item.memo) && (
             <button className="memo-more" onClick={() => setMemoOpen(!memoOpen)} aria-expanded={memoOpen}>{memoOpen ? "접기" : "메모 더보기"}</button>
           )}
+          <PhotoStrip itemId={item.id} photos={item.photos} />
         </div>
         <button className="check" role="checkbox" aria-checked={item.done} aria-label={`${item.title} 완료`} onClick={onToggle}>
           <span className="box"><Check className="icon" /></span>

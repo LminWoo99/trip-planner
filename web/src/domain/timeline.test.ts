@@ -4,7 +4,7 @@ import type { Group, Item } from "./types";
 
 const item = (over: Partial<Item>): Item => ({
   id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", placeId: "", lat: null, lng: null,
-  memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], ...over,
+  memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], photos: [], ...over,
 });
 
 const group = (over: Partial<Group> = {}): Group => ({
