@@ -85,6 +85,7 @@ export function MoreScreen() {
               <div className="li-title">위치 없는 장소 채우기</div>
               <div className="li-sub num" style={{ paddingRight: 8 }}>{snapshot.items.filter((i) => i.place && i.lat === null).length + snapshot.places.filter((p) => p.lat === null).length}곳</div>
             </button>
+            <div className="li"><div className="li-sub" style={{ marginTop: 0 }}>버전</div><div className="li-sub num" id="build-id" style={{ paddingRight: 8, marginTop: 0 }}>{__BUILD_ID__}</div></div>
             <button className="li" onClick={signOut}><div className="li-title" style={{ display: "flex", gap: 6, alignItems: "center" }}><LogOut className="icon" />이 폰에서 나가기</div></button>
           </div>
         </div>
