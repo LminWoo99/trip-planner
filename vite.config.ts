@@ -5,6 +5,8 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   root: "web",
+  // shown in 더보기 so a phone can tell whether it already runs the latest deploy
+  define: { __BUILD_ID__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ")) },
   envDir: "..", // VITE_GOOGLE_MAPS_KEY lives in the repo-root .env (not in git)
   build: { outDir: "../pb_public", emptyOutDir: true },
   server: {
@@ -16,6 +18,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false, // registered in app/updater.ts (update checks + safe reload)
       includeAssets: ["icon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "답답해서 직접 만든다",
@@ -33,6 +36,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // take over open tabs as soon as a new version is installed; app/updater.ts reloads safely
+        skipWaiting: true,
+        clientsClaim: true,
         // fonts are split into ~90 unicode-range chunks; cache the ones actually used instead of all of them
         globPatterns: ["**/*.{js,css,html,svg,png}"],
         navigateFallbackDenylist: [/^\/api\//, /^\/_\//],
