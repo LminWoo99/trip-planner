@@ -44,7 +44,7 @@ export function ItemRow({ item, n, onOpen, onToggle, className = "" }: Props) {
             {item.title}
           </button>
           {item.place && (
-            <a className="c-meta" href={gmapsSearch(item.place)} target="_blank" rel="noopener noreferrer">
+            <a className="c-meta" href={gmapsSearch(item)} target="_blank" rel="noopener noreferrer">
               <CatIcon className="icon" /><span>{item.place}</span>
             </a>
           )}

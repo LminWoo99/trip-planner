@@ -13,6 +13,40 @@ export function toKrw(amount: number, cur: Currency, rates: Rates): number {
   }
 }
 
+const isSpend = (e: Expense) => e.kind !== "deposit";
+
+/** Everything actually spent (personal and shared wallet), in KRW. Deposits are not spending. */
+export function totalSpent(expenses: readonly Expense[], rates: Rates): number {
+  return expenses.filter(isSpend).reduce((s, e) => s + toKrw(e.amount, e.cur, rates), 0);
+}
+
+export function totalsByCategory(expenses: readonly Expense[], rates: Rates): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of expenses.filter(isSpend)) {
+    const key = e.cat || "기타";
+    out.set(key, (out.get(key) ?? 0) + toKrw(e.amount, e.cur, rates));
+  }
+  return out;
+}
+
+/** Shared wallet balance per currency: deposits minus what was paid from it. */
+export function poolBalance(expenses: readonly Expense[]): Map<Currency, number> {
+  const out = new Map<Currency, number>();
+  for (const e of expenses) {
+    if (e.kind === "deposit") out.set(e.cur, (out.get(e.cur) ?? 0) + e.amount);
+    else if (e.fromPool) out.set(e.cur, (out.get(e.cur) ?? 0) - e.amount);
+  }
+  return out;
+}
+
+export function depositsByMember(expenses: readonly Expense[], rates: Rates): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.kind === "deposit" && e.payer) out.set(e.payer, (out.get(e.payer) ?? 0) + toKrw(e.amount, e.cur, rates));
+  }
+  return out;
+}
+
 export interface Settlement {
   readonly from: Member;
   readonly to: Member;
@@ -21,9 +55,9 @@ export interface Settlement {
 
 /**
  * Who owes whom, for a two-person trip.
- * half  → the other person owes the payer half
- * other → the payer paid for the other person, who owes it all
- * payer → the payer's own expense, nothing owed
+ * Personal payments: half → the other owes half · other → the other owes all · payer → nothing.
+ * Shared wallet: spending from it is shared by definition; only unequal deposits matter,
+ * and the leftover is assumed split evenly, so the gap is settled by half.
  */
 export function settle(expenses: readonly Expense[], members: readonly Member[], rates: Rates): Settlement | null {
   if (members.length !== 2) return null;
@@ -31,6 +65,12 @@ export function settle(expenses: readonly Expense[], members: readonly Member[],
   let aOwesB = 0;
   for (const e of expenses) {
     const krw = toKrw(e.amount, e.cur, rates);
+    if (e.kind === "deposit") {
+      if (e.payer === b.id) aOwesB += krw / 2;
+      else if (e.payer === a.id) aOwesB -= krw / 2;
+      continue;
+    }
+    if (e.fromPool) continue;
     const share = e.split === "half" ? krw / 2 : e.split === "other" ? krw : 0;
     if (e.payer === b.id) aOwesB += share;
     else if (e.payer === a.id) aOwesB -= share;
@@ -38,15 +78,6 @@ export function settle(expenses: readonly Expense[], members: readonly Member[],
   const amount = Math.round(Math.abs(aOwesB));
   if (amount === 0) return null;
   return aOwesB > 0 ? { from: a, to: b, amount } : { from: b, to: a, amount };
-}
-
-export function totalsByCategory(expenses: readonly Expense[], rates: Rates): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const e of expenses) {
-    const key = e.cat || "기타";
-    out.set(key, (out.get(key) ?? 0) + toKrw(e.amount, e.cur, rates));
-  }
-  return out;
 }
 
 export const formatKrw = (n: number) => `${Math.round(n).toLocaleString("ko-KR")}원`;

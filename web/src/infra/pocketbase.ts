@@ -28,16 +28,17 @@ export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[
     selected: orNull<BranchKey>(r.selected), selectedBy: orNull<string>(r.selectedBy), selectedAt: orNull<string>(r.selectedAt),
   }),
   items: (r): Item => ({
-    id: r.id, day: r.day, order: r.order, time: r.time, cat: r.cat, title: r.title, place: r.place,
+    id: r.id, day: r.day, order: r.order, time: r.time, cat: r.cat, title: r.title, place: r.place, placeId: r.placeId ?? "",
     lat: num(r.lat), lng: num(r.lng), memo: r.memo, cost: r.cost || 0, cur: orNull<Currency>(r.cur), link: r.link,
     done: !!r.done, group: orNull<string>(r.group), branch: orNull<BranchKey>(r.branch),
   }),
   places: (r): Place => ({
-    id: r.id, name: r.name, city: r.city, type: r.type, q: r.q, lat: num(r.lat), lng: num(r.lng),
+    id: r.id, name: r.name, city: r.city, type: r.type, q: r.q, placeId: r.placeId ?? "", lat: num(r.lat), lng: num(r.lng),
     price: r.price, memo: r.memo, link: r.link, visited: !!r.visited,
   }),
   expenses: (r): Expense => ({
-    id: r.id, title: r.title, amount: r.amount, cur: r.cur, payer: r.payer, split: r.split, cat: r.cat,
+    id: r.id, kind: r.kind === "deposit" ? "deposit" : "spend", title: r.title, amount: r.amount, cur: r.cur,
+    payer: orNull<string>(r.payer), fromPool: !!r.fromPool, split: r.split || "half", cat: r.cat,
     day: orNull<string>(r.day), memo: r.memo, created: r.created,
   }),
   checklist: (r): ChecklistItem => ({ id: r.id, text: r.text, cat: r.cat, who: r.who, memo: r.memo, done: !!r.done, order: r.order || 0 }),

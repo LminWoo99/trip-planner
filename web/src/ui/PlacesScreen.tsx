@@ -3,7 +3,7 @@ import { Check, CalendarPlus, MapPin, Plus } from "lucide-react";
 import type { BranchKey, Place } from "../domain/types";
 import { gmapsSearch } from "../domain/geo";
 import { create, remove, update, useApp } from "../app/store";
-import { geocode } from "../infra/geocode";
+import { PlaceSearch } from "./PlaceSearch";
 import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
 import { shortDay } from "./format";
@@ -48,7 +48,7 @@ export function PlacesScreen() {
                     {p.memo && <div className="li-sub keep" style={{ color: "var(--ink2)" }}>{p.memo}</div>}
                   </button>
                   <div style={{ display: "flex" }}>
-                    <a className="icon-btn" href={p.link || gmapsSearch(p.q || p.name)} target="_blank" rel="noopener noreferrer" aria-label="지도에서 보기"><MapPin className="icon" /></a>
+                    <a className="icon-btn" href={p.link || gmapsSearch({ place: p.q || p.name, placeId: p.placeId })} target="_blank" rel="noopener noreferrer" aria-label="지도에서 보기"><MapPin className="icon" /></a>
                     <button className="icon-btn" aria-label="일정에 추가" onClick={() => setScheduling(p)}><CalendarPlus className="icon" /></button>
                   </div>
                 </div>
@@ -69,15 +69,19 @@ function PlaceSheet({ place, onClose }: { place: Place | null; onClose: () => vo
   const [city, setCity] = useState(place?.city ?? "사파");
   const [type, setType] = useState(place?.type ?? "food");
   const [q, setQ] = useState(place?.q ?? "");
+  const [found, setFound] = useState<{ placeId: string; lat: number; lng: number } | null>(
+    place && place.lat !== null && place.lng !== null ? { placeId: place.placeId, lat: place.lat, lng: place.lng } : null,
+  );
   const [price, setPrice] = useState(place?.price ?? "");
   const [memo, setMemo] = useState(place?.memo ?? "");
   const [link, setLink] = useState(place?.link ?? "");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function save() {
-    const query = q.trim() || name.trim();
-    const loc = place && place.q === query && place.lat !== null ? { lat: place.lat, lng: place.lng } : await geocode(query, city);
-    const data = { name: name.trim(), city: city.trim(), type, q: query, price, memo, link: link.trim(), lat: loc?.lat ?? 0, lng: loc?.lng ?? 0 };
+    const data = {
+      name: name.trim(), city: city.trim(), type, q: q.trim() || name.trim(), price, memo, link: link.trim(),
+      lat: found?.lat ?? 0, lng: found?.lng ?? 0, placeId: found?.placeId ?? "",
+    };
     if (await attempt(() => (place ? update("places", place.id, data) : create("places", data)), place ? "저장했어요" : "장소를 추가했어요")) onClose();
   }
 
@@ -97,7 +101,19 @@ function PlaceSheet({ place, onClose }: { place: Place | null; onClose: () => vo
         </>
       )}
     >
-      <label className="field"><span>이름</span><input id="place-name" className="input" value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <div className="field">
+        <label htmlFor="place-name" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink2)" }}>이름</label>
+        <PlaceSearch
+          id="place-name"
+          value={name}
+          city={city}
+          located={found !== null}
+          placeholder="예: Toàn Mán Restaurant"
+          onText={(t) => { setName(t); setFound(null); }}
+          onPick={(p) => { setName(p.name); setQ(p.name); setFound({ placeId: p.placeId, lat: p.lat, lng: p.lng }); if (!link.trim() && p.url) setLink(p.url); }}
+          onClear={() => { setName(""); setFound(null); }}
+        />
+      </div>
       <div className="field">
         <span>종류</span>
         <div className="chips">{Object.entries(TYPE_LABEL).map(([k, v]) => <button key={k} type="button" className="chip" aria-pressed={type === k} onClick={() => setType(k)}>{v}</button>)}</div>
@@ -106,7 +122,6 @@ function PlaceSheet({ place, onClose }: { place: Place | null; onClose: () => vo
         <label className="field"><span>지역</span><input id="place-city" className="input" value={city} onChange={(e) => setCity(e.target.value)} /></label>
         <label className="field"><span>가격대</span><input id="place-price" className="input" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="예: 1인 10만동" /></label>
       </div>
-      <label className="field"><span>지도 검색어</span><input id="place-q" className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="비우면 이름으로 검색해요" /></label>
       <label className="field"><span>메모</span><textarea id="place-memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
       <label className="field"><span>링크</span><input id="place-link" className="input" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" /></label>
     </Sheet>
@@ -127,7 +142,7 @@ function ScheduleSheet({ place, onClose }: { place: Place; onClose: () => void }
     const order = Math.max(0, ...siblings.map((i) => i.order), ...(group ? [] : forks.map((g) => g.order))) + 1;
     const ok = await attempt(() => create("items", {
       day, order, cat: TYPE_TO_CAT[place.type] ?? "etc", title: place.name, place: place.q || place.name,
-      lat: place.lat ?? 0, lng: place.lng ?? 0, memo: place.memo, link: place.link, group: group ?? "", branch: branch ?? "",
+      lat: place.lat ?? 0, lng: place.lng ?? 0, placeId: place.placeId, memo: place.memo, link: place.link, group: group ?? "", branch: branch ?? "",
     }), "일정에 추가했어요");
     if (ok) onClose();
   }

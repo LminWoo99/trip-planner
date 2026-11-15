@@ -3,7 +3,7 @@ import { buildDay, effectiveItems, reorder } from "./timeline";
 import type { Group, Item } from "./types";
 
 const item = (over: Partial<Item>): Item => ({
-  id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", lat: null, lng: null,
+  id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", placeId: "", lat: null, lng: null,
   memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, ...over,
 });
 

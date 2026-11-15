@@ -56,7 +56,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const members = snapshot.members;
   const me = members.find((m) => m.id === meId);
   const other = members.find((m) => m.id !== meId);
-  const topo = effective.some((i) => i.cat === "trek");
+  const terrain = effective.some((i) => i.cat === "trek");
   const firstFork = entries.find((e) => e.kind === "fork");
   const mapNote = firstFork && firstFork.kind === "fork"
     ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected} 동선` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)} 기준`)
@@ -147,7 +147,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         <div className="day-top">
           {!edit && <DayHead day={day} forecast={forecast} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
-          <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} topo={topo} /></Suspense>
+          <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
         </div>
         {edit ? (
           <Suspense fallback={null}><EditList

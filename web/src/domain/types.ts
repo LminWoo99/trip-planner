@@ -59,6 +59,7 @@ export interface Item {
   readonly cat: Category;
   readonly title: string;
   readonly place: string;
+  readonly placeId: string;
   readonly lat: number | null;
   readonly lng: number | null;
   readonly memo: string;
@@ -76,6 +77,7 @@ export interface Place {
   readonly city: string;
   readonly type: string;
   readonly q: string;
+  readonly placeId: string;
   readonly lat: number | null;
   readonly lng: number | null;
   readonly price: string;
@@ -86,10 +88,14 @@ export interface Place {
 
 export interface Expense {
   readonly id: string;
+  /** spend: money spent · deposit: money put into the shared wallet */
+  readonly kind: "spend" | "deposit";
   readonly title: string;
   readonly amount: number;
   readonly cur: Currency;
-  readonly payer: string; // member id
+  /** member id; null when paid from the shared wallet */
+  readonly payer: string | null;
+  readonly fromPool: boolean;
   readonly split: Split;
   readonly cat: string;
   readonly day: string | null;
