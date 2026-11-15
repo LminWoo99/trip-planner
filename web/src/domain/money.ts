@@ -80,4 +80,30 @@ export function settle(expenses: readonly Expense[], members: readonly Member[],
   return aOwesB > 0 ? { from: a, to: b, amount } : { from: b, to: a, amount };
 }
 
+export interface PlannedCost {
+  readonly krw: number;
+  /** how many items had a cost; 0 means "unknown", not "free" */
+  readonly counted: number;
+}
+
+/** Planned cost of schedule items, converted to KRW. */
+export function plannedCost(items: readonly { cost: number; cur: Currency | null }[], rates: Rates): PlannedCost {
+  let krw = 0;
+  let counted = 0;
+  for (const it of items) {
+    if (!it.cost) continue;
+    krw += toKrw(it.cost, it.cur ?? "VND", rates);
+    counted++;
+  }
+  return { krw, counted };
+}
+
+/** Money actually spent on one day (personal and shared wallet; deposits excluded). */
+export function spentOnDay(expenses: readonly Expense[], dayId: string, rates: Rates): number {
+  return expenses.filter((e) => e.kind !== "deposit" && e.day === dayId).reduce((s, e) => s + toKrw(e.amount, e.cur, rates), 0);
+}
+
+/** "약 152,000원", rounded to the nearest thousand for planning figures. */
+export const formatApproxKrw = (n: number) => `약 ${(Math.round(n / 1000) * 1000).toLocaleString("ko-KR")}원`;
+
 export const formatKrw = (n: number) => `${Math.round(n).toLocaleString("ko-KR")}원`;

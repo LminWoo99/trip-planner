@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { poolBalance, settle, toKrw, totalSpent, totalsByCategory } from "./money";
+import { plannedCost, poolBalance, settle, spentOnDay, toKrw, totalSpent, totalsByCategory } from "./money";
+import { buildDay, effectiveItems } from "./timeline";
+import type { Group, Item } from "./types";
 import type { Expense, Member } from "./types";
 
 const rates = { vndKrw: 0.053, usdKrw: 1395 };
@@ -114,5 +116,52 @@ describe("공용비", () => {
     const result = settle(expenses, [minu, ryeojin], rates);
     // then
     expect(result).toEqual({ from: ryeojin, to: minu, amount: 26_500 });
+  });
+});
+
+describe("일정 예상 비용", () => {
+  const item = (over: Partial<Item>): Item => ({
+    id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", placeId: "", lat: null, lng: null,
+    memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], photos: [], ...over,
+  });
+  const group = (selected: Group["selected"]): Group => ({
+    id: "g", day: "d2", order: 2, title: "", decideAt: "",
+    branches: [{ key: "A", label: "", condition: "" }, { key: "B", label: "", condition: "" }],
+    selected, selectedBy: null, selectedAt: null,
+  });
+  const items = [
+    item({ id: "c", order: 1, cost: 100_000, cur: "VND" }),
+    item({ id: "a", group: "g", branch: "A", cost: 800_000, cur: "VND" }),
+    item({ id: "b", group: "g", branch: "B", cost: 20_000, cur: "KRW" }),
+  ];
+
+  it("갈림길을 고르기 전에는 플랜 A 기준으로 더한다", () => {
+    // when
+    const cost = plannedCost(effectiveItems(buildDay("d2", items, [group(null)])), rates);
+    // then  900,000₫ × 0.053
+    expect(cost.krw).toBeCloseTo(47_700);
+    expect(cost.counted).toBe(2);
+  });
+
+  it("플랜 B를 고르면 B의 비용으로 바뀐다", () => {
+    // when
+    const cost = plannedCost(effectiveItems(buildDay("d2", items, [group("B")])), rates);
+    // then  100,000₫ → 5,300원 + 20,000원
+    expect(cost.krw).toBeCloseTo(25_300);
+  });
+
+  it("비용이 적힌 일정이 없으면 금액을 모르는 것으로 본다", () => {
+    expect(plannedCost([item({})], rates)).toEqual({ krw: 0, counted: 0 });
+  });
+
+  it("그날 쓴 돈은 공용비 입금을 빼고 더한다", () => {
+    // given
+    const expenses = [
+      expense({ amount: 10_000, day: "d2" }),
+      expense({ amount: 50_000, day: "d2", kind: "deposit" }),
+      expense({ amount: 7_000, day: "d3" }),
+    ];
+    // when / then
+    expect(spentOnDay(expenses, "d2", rates)).toBe(10_000);
   });
 });

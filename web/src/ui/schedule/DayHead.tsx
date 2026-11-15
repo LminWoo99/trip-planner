@@ -1,10 +1,11 @@
-import { BedDouble } from "lucide-react";
+import { BedDouble, Wallet } from "lucide-react";
+import { formatApproxKrw, formatKrw, type PlannedCost } from "../../domain/money";
 import type { Day } from "../../domain/types";
 import { describe, spotsForCity, weatherFor, type Forecast } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { dayLabel, parseDay, stamp } from "../format";
 
-export function DayHead({ day, forecast }: { day: Day; forecast: Forecast | null }) {
+export function DayHead({ day, forecast, planned, spent, basis }: { day: Day; forecast: Forecast | null; planned: PlannedCost; spent: number; basis: string | null }) {
   const spots = spotsForCity(day.city);
   const cells = spots.map((s) => ({ spot: s, w: weatherFor(forecast, s.id, day.date) }));
   const hasAny = cells.some((c) => c.w);
@@ -16,6 +17,13 @@ export function DayHead({ day, forecast }: { day: Day; forecast: Forecast | null
         <span>{dayLabel(day.date)}</span>
         {day.stay && <span><BedDouble className="icon" />{day.stay}</span>}
       </div>
+      {(planned.counted > 0 || spent > 0) && (
+        <div className="day-cost" aria-live="polite">
+          <Wallet className="icon" />
+          {planned.counted > 0 && <span>예상 <b className="num">{formatApproxKrw(planned.krw)}</b>{basis && <small>{basis} 기준</small>}</span>}
+          {spent > 0 && <span>쓴 돈 <b className="num">{formatKrw(spent)}</b></span>}
+        </div>
+      )}
       {spots.length > 0 && (hasAny ? (
         <>
           <div className="wx" style={cells.length === 1 ? { gridTemplateColumns: "1fr" } : undefined}>

@@ -7,6 +7,7 @@ import { estimateLeg, formatKm, formatMinutes, isSameSpot, type LatLng } from ".
 import { describe, MOUNTAIN_FORECAST_URL, type DailyWeather } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { forecastHint } from "./DayHead";
+import { formatApproxKrw, type PlannedCost } from "../../domain/money";
 
 interface Props {
   entry: ForkEntry;
@@ -16,6 +17,7 @@ interface Props {
   otherName: string | null;
   summit: DailyWeather | null;
   dayDate: string;
+  branchCosts: ReadonlyMap<BranchKey, PlannedCost>;
   onPick: (key: BranchKey) => void;
   onEdit: () => void;
   onAddItem: (key: BranchKey) => void;
@@ -24,7 +26,7 @@ interface Props {
 const hasLoc = (i: Item): i is Item & LatLng => i.lat !== null && i.lng !== null;
 
 /** Before a choice: the trail splits into the plans; tap or swipe to preview, then confirm. */
-export function ForkCard({ entry, numberStart, otherName, summit, dayDate, onPick, onEdit, onAddItem }: Props) {
+export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branchCosts, onPick, onEdit, onAddItem }: Props) {
   const { group, branches } = entry;
   const keys = group.branches.map((b) => b.key);
   const [tab, setTab] = useState<BranchKey>(keys[0] ?? "A");
@@ -81,7 +83,10 @@ export function ForkCard({ entry, numberStart, otherName, summit, dayDate, onPic
             onClick={() => setTab(b.key)}
           >
             <span className="trail-k">{b.key}</span>
-            <span className="trail-cond">{b.condition || b.label}</span>
+            <span className="trail-cond">
+              {b.condition || b.label}
+              {(branchCosts.get(b.key)?.counted ?? 0) > 0 && <small className="trail-cost num">{formatApproxKrw(branchCosts.get(b.key)!.krw)}</small>}
+            </span>
           </button>
         ))}
       </div>
