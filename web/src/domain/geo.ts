@@ -46,6 +46,25 @@ export function formatMinutes(min: number): string {
   return m ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
+/** Walking length of a course through its located stops (straight lines × detour factor). */
+export function courseKm(stops: readonly { lat: number | null; lng: number | null }[]): number {
+  const pts = stops.filter((s): s is LatLng => s.lat !== null && s.lng !== null);
+  let km = 0;
+  for (let i = 1; i < pts.length; i++) km += distanceKm(pts[i - 1], pts[i]) * DETOUR;
+  return km;
+}
+
+/** Google Maps walking directions through the stops (Google allows up to 9 waypoints). */
+export function gmapsWalk(stops: readonly MapTarget[]): string | null {
+  const url = gmapsRoute(stops.slice(0, 11));
+  return url ? `${url}&travelmode=walking` : null;
+}
+
+/** "A → B → C" or one name per line → names. */
+export function splitCourse(text: string): string[] {
+  return text.split(/\n|→|->|⇒|>/).map((s) => s.trim()).filter((s) => s.length > 1);
+}
+
 export function formatKm(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }

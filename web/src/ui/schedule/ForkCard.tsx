@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
+import { MemoToggle } from "./MemoToggle";
 import { ArrowUpRight, Check, ChevronDown, ChevronUp, CloudFog, Link2, Pencil, Plus, RotateCcw, Split } from "lucide-react";
 import type { BranchKey, Item, Member } from "../../domain/types";
 import type { ForkEntry } from "../../domain/timeline";
 import { estimateLeg, formatKm, formatMinutes, isSameSpot, type LatLng } from "../../domain/geo";
 import { describe, MOUNTAIN_FORECAST_URL, type DailyWeather } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
+import { forecastHint } from "./DayHead";
 
 interface Props {
   entry: ForkEntry;
@@ -13,6 +15,7 @@ interface Props {
   meName: string | null;
   otherName: string | null;
   summit: DailyWeather | null;
+  dayDate: string;
   onPick: (key: BranchKey) => void;
   onEdit: () => void;
   onAddItem: (key: BranchKey) => void;
@@ -21,7 +24,7 @@ interface Props {
 const hasLoc = (i: Item): i is Item & LatLng => i.lat !== null && i.lng !== null;
 
 /** Before a choice: the trail splits into the plans; tap or swipe to preview, then confirm. */
-export function ForkCard({ entry, numberStart, otherName, summit, onPick, onEdit, onAddItem }: Props) {
+export function ForkCard({ entry, numberStart, otherName, summit, dayDate, onPick, onEdit, onAddItem }: Props) {
   const { group, branches } = entry;
   const keys = group.branches.map((b) => b.key);
   const [tab, setTab] = useState<BranchKey>(keys[0] ?? "A");
@@ -64,7 +67,7 @@ export function ForkCard({ entry, numberStart, otherName, summit, onPick, onEdit
               <b>판시판 정상 {summit.tMax}° / {summit.tMin}°</b>
               <span>구름 {summit.cloud}%&ensp;강수 {summit.rainProb}%&ensp;바람 {summit.wind}km/h</span>
             </>
-          ) : <span>정상 예보는 16일 전부터 나와요</span>}
+          ) : <span>{forecastHint(dayDate)}</span>}
         </div>
         <a className="mf-link" href={MOUNTAIN_FORECAST_URL} target="_blank" rel="noopener noreferrer">상세<ArrowUpRight className="icon" /></a>
       </div>
@@ -95,7 +98,8 @@ export function ForkCard({ entry, numberStart, otherName, summit, onPick, onEdit
                 {num !== null ? <span className="p-mk">{num}</span> : <span className="p-mk dot" />}
                 <div style={{ minWidth: 0 }}>
                   <div className="p-title">{it.title}</div>
-                  {(it.time || it.place) && <div className="p-meta">{it.time && <span>{it.time}</span>}{it.place && <span>{it.place}</span>}</div>}
+                  {(it.time || it.place || it.stops.length > 0) && <div className="p-meta">{it.time && <span>{it.time}</span>}{it.place && <span>{it.place}</span>}{it.stops.length > 0 && <span>경유 {it.stops.length}곳</span>}</div>}
+                  {it.memo && <MemoToggle memo={it.memo} />}
                 </div>
               </div>
             </div>

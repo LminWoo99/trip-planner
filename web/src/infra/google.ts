@@ -56,6 +56,7 @@ export interface FoundPlace {
   readonly lat: number;
   readonly lng: number;
   readonly url: string;
+  readonly primaryType: string;
 }
 
 /** One search session: many keystrokes, one selection. Billed as a single session. */
@@ -92,7 +93,7 @@ export async function findPlace(query: string, city: string): Promise<FoundPlace
   const places = await loadPlaces();
   const { places: hits } = await places.Place.searchByText({
     textQuery: query,
-    fields: ["displayName", "formattedAddress", "location", "googleMapsURI"],
+    fields: ["displayName", "formattedAddress", "location", "googleMapsURI", "primaryType"],
     locationBias: biasFor(city),
     language: "ko",
     region: "vn",
@@ -110,5 +111,17 @@ function toFound(p: google.maps.places.Place): FoundPlace | null {
     lat: p.location.lat(),
     lng: p.location.lng(),
     url: p.googleMapsURI ?? "",
+    primaryType: p.primaryType ?? "",
   };
+}
+
+/** Google place type → our place kind. */
+export function kindOf(primaryType: string): "food" | "cafe" | "sight" | "stay" | "shop" | "etc" {
+  const t = primaryType.toLowerCase();
+  if (/cafe|coffee|bakery|tea/.test(t)) return "cafe";
+  if (/restaurant|food|bar|meal|diner/.test(t)) return "food";
+  if (/lodging|hotel|hostel|resort|guest_house|inn/.test(t)) return "stay";
+  if (/store|shop|market|mall/.test(t)) return "shop";
+  if (/tourist|attraction|museum|park|church|temple|viewpoint|landmark|village|hiking/.test(t)) return "sight";
+  return "etc";
 }

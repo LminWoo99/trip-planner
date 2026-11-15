@@ -31,6 +31,7 @@ export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[
     id: r.id, day: r.day, order: r.order, time: r.time, cat: r.cat, title: r.title, place: r.place, placeId: r.placeId ?? "",
     lat: num(r.lat), lng: num(r.lng), memo: r.memo, cost: r.cost || 0, cur: orNull<Currency>(r.cur), link: r.link,
     done: !!r.done, group: orNull<string>(r.group), branch: orNull<BranchKey>(r.branch),
+    stops: Array.isArray(r.stops) ? r.stops : [],
   }),
   places: (r): Place => ({
     id: r.id, name: r.name, city: r.city, type: r.type, q: r.q, placeId: r.placeId ?? "", lat: num(r.lat), lng: num(r.lng),
