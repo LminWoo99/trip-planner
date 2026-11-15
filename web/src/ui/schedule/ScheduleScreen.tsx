@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpDown, CalendarArrowUp, Check, Plus, Split, Trash2 } from "lucide-react";
+import { ArrowUpDown, CalendarArrowUp, Check, Copy, Plus, Split, Trash2 } from "lucide-react";
 import type { BranchKey, Group, Item } from "../../domain/types";
 import { buildDay, effectiveBranch, effectiveItems } from "../../domain/timeline";
 import { isSameSpot, type LatLng } from "../../domain/geo";
-import { remove, update, useApp } from "../../app/store";
+import { plannedCost, spentOnDay } from "../../domain/money";
+import { create, remove, update, useApp } from "../../app/store";
 import { weatherFor } from "../../infra/weather";
 import { attempt } from "../toast";
 import { Sheet } from "../Sheet";
@@ -34,7 +35,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [itemSheet, setItemSheet] = useState<{ item: Item | null; target: ItemDraftTarget } | null>(null);
   const [groupSheet, setGroupSheet] = useState<{ group: Group | null } | null>(null);
-  const [bulk, setBulk] = useState<"move" | "delete" | null>(null);
+  const [bulk, setBulk] = useState<"move" | "copy" | "delete" | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -56,6 +57,9 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   if (!snapshot || !day) return <div className="screen"><div className="empty">일정이 없어요</div></div>;
 
   const members = snapshot.members;
+  const rates = { vndKrw: snapshot.trip.vndKrw, usdKrw: snapshot.trip.usdKrw };
+  const planned = plannedCost(effective, rates);
+  const spent = spentOnDay(snapshot.expenses, day.id, rates);
   const me = members.find((m) => m.id === meId);
   const other = members.find((m) => m.id !== meId);
   const terrain = effective.some((i) => i.cat === "trek");
@@ -108,6 +112,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
             otherName={other?.displayName ?? null}
             summit={weatherFor(forecast, "fansipan", day.date)}
             dayDate={day.date}
+            branchCosts={new Map(g.branches.map((b) => [b.key, plannedCost(e.branches.get(b.key) ?? [], rates)]))}
             onPick={(k) => pick(g, k)}
             onEdit={() => setGroupSheet({ group: g })}
             onAddItem={(k) => openNew(g.id, k)}
@@ -148,7 +153,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         }}
       >
         <div className="day-top">
-          {!edit && <DayHead day={day} forecast={forecast} />}
+          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} basis={firstFork && firstFork.kind === "fork" ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected}` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`) : null} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
           <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
         </div>
@@ -174,7 +179,8 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
       {edit && selected.size > 0 && (
         <div className="selbar">
           <b>{selected.size}개 선택</b>
-          <button onClick={() => setBulk("move")}><CalendarArrowUp className="icon" />다른 날로</button>
+          <button onClick={() => setBulk("move")}><CalendarArrowUp className="icon" />옮기기</button>
+          <button onClick={() => setBulk("copy")}><Copy className="icon" />복사</button>
           <button className="danger" onClick={() => setBulk("delete")}><Trash2 className="icon" />삭제</button>
         </div>
       )}
@@ -187,17 +193,25 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
           return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;
         })()}
       </Suspense>
-      {bulk === "move" && (
-        <Sheet title={`${selected.size}개를 어느 날로 옮길까요?`} onClose={() => setBulk(null)}>
+      {(bulk === "move" || bulk === "copy") && (
+        <Sheet title={`${selected.size}개를 어느 날로 ${bulk === "move" ? "옮길까요" : "복사할까요"}?`} onClose={() => setBulk(null)}>
+          {bulk === "copy" && <p className="keep" style={{ margin: 0, fontSize: 13, color: "var(--ink2)" }}>지금 날짜에는 그대로 두고, 고른 날 맨 뒤에 같은 일정을 하나씩 더 만들어요. 사진과 완료 표시는 복사하지 않아요.</p>}
           <div className="list">
-            {days.filter((d) => d.id !== day.id).map((d) => (
+            {days.filter((d) => bulk === "copy" || d.id !== day.id).map((d) => (
               <button key={d.id} className="li" onClick={async () => {
                 const base = Math.max(0, ...snapshot.items.filter((i) => i.day === d.id && !i.group).map((i) => i.order), ...snapshot.groups.filter((g) => g.day === d.id).map((g) => g.order));
-                const ids = [...selected];
-                const ok = await attempt(() => Promise.all(ids.map((id, k) => update("items", id, { day: d.id, order: base + k + 1, group: "", branch: "" }))), `${d.n}일차로 옮겼어요`);
+                // keep the on-screen order of the selection
+                const picked = snapshot.items.filter((i) => selected.has(i.id)).sort((a, b) => a.order - b.order);
+                const ok = bulk === "move"
+                  ? await attempt(() => Promise.all(picked.map((it, k) => update("items", it.id, { day: d.id, order: base + k + 1, group: "", branch: "" }))), `${d.n}일차로 옮겼어요`)
+                  : await attempt(() => Promise.all(picked.map((it, k) => create("items", {
+                      day: d.id, order: base + k + 1, group: "", branch: "", done: false,
+                      time: it.time, cat: it.cat, title: it.title, place: it.place, placeId: it.placeId,
+                      lat: it.lat ?? 0, lng: it.lng ?? 0, memo: it.memo, cost: it.cost, cur: it.cur ?? "", link: it.link, stops: it.stops,
+                    }))), `${d.n}일차에 복사했어요`);
                 if (ok) { setBulk(null); setSelected(new Set()); }
               }}>
-                <div><div className="li-title">{d.n}일차 {d.title}</div><div className="li-sub">{shortDay(d.date)}</div></div>
+                <div><div className="li-title">{d.n}일차 {d.title}{d.id === day.id && <span style={{ fontWeight: 400, color: "var(--ink3)" }}> (지금 날)</span>}</div><div className="li-sub">{shortDay(d.date)}</div></div>
               </button>
             ))}
           </div>

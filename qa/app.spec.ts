@@ -117,6 +117,69 @@ test.describe("일정", () => {
     await expect(page.locator(".card", { hasText: "QA 사진 일정" })).toHaveCount(0);
   });
 
+  test("하루 예상 비용이 보이고 갈림길에서 고른 플랜에 따라 바뀐다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 2);
+    const addItem = async (title: string, cost: string) => {
+      await page.getByLabel("제목").fill(title);
+      await page.locator("#item-cost").fill(cost);
+      await page.getByRole("button", { name: "추가", exact: true }).click();
+      await expect(page.locator(".sheet")).toHaveCount(0);
+    };
+    // common item: 200,000₫ → 10,600원
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await addItem("QA 공통 비용", "200000");
+    await expect(page.locator(".day-cost")).toContainText("약 11,000원");
+    // plan B item: 1,000,000₫ → 53,000원
+    const fork = page.locator("section.fork").first();
+    await fork.getByRole("tab", { name: /B/ }).click();
+    await fork.getByRole("button", { name: "플랜 B에 일정 추가" }).click();
+    await addItem("QA 플랜B 비용", "1000000");
+    await expect(fork.getByRole("tab", { name: /B/ })).toContainText("약 53,000원");
+    await expect(page.locator(".day-cost")).toContainText("플랜 A 기준");
+    await fork.scrollIntoViewIfNeeded();
+    await shot(page, "47-fork-costs");
+    await fork.getByRole("tab", { name: /B/ }).click();
+    await page.getByRole("button", { name: "플랜 B로 갈게" }).click();
+    await expect(page.locator(".day-cost")).toContainText("약 64,000원");
+    await expect(page.locator(".day-cost")).toContainText("플랜 B 기준");
+    await page.locator(".screen").evaluate((el) => el.scrollTo(0, 0));
+    await shot(page, "48-day-cost-b");
+    // clean up
+    await page.getByRole("button", { name: "다시 고르기" }).click();
+    for (const t of ["QA 공통 비용", "QA 플랜B 비용"]) {
+      await page.getByRole("button", { name: "편집" }).click();
+      if (t.includes("플랜B")) await page.locator(".e-fork").getByRole("tab", { name: "플랜 B" }).click();
+      await page.getByRole("button", { name: t, exact: true }).click();
+      await page.getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "삭제하기" }).click();
+      await page.getByRole("button", { name: "완료" }).click();
+    }
+    await expect(page.locator(".day-cost")).toHaveCount(0);
+  });
+
+  test("편집 모드에서 일정을 골라 다른 날로 복사하면 원래 날에도 남는다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 4);
+    await page.getByRole("button", { name: "편집" }).click();
+    const first = page.locator(".edit-list > .e-row").first();
+    const title = (await first.locator(".e-title").textContent())!.trim();
+    await first.getByRole("checkbox").click();
+    await page.getByRole("button", { name: "복사" }).click();
+    await shot(page, "43-copy-sheet");
+    await page.getByRole("button", { name: /^5일차/ }).last().click();
+    await expect(page.locator(".edit-list .e-title").getByText(title, { exact: true })).toHaveCount(1);
+    await page.getByRole("button", { name: "완료" }).click();
+    await openDay(page, 5);
+    const copied = page.locator(".card").filter({ has: page.getByRole("button", { name: title, exact: true }) });
+    await expect(copied).toHaveCount(1);
+    // clean up the copy
+    await copied.getByRole("button", { name: title, exact: true }).click();
+    await page.getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(copied).toHaveCount(0);
+  });
+
   test("편집 모드에서 손잡이를 끌어 순서를 바꾼다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 4);
