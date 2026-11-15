@@ -1,7 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { applyUpdate, useUpdatePending } from "../app/updater";
 
-/** Shown only when a new version arrived while a sheet was open; otherwise the app reloads itself. */
+/** A new version is ready; it is applied only when tapped, never automatically. */
 export function UpdateBanner() {
   const pending = useUpdatePending();
   if (!pending) return null;

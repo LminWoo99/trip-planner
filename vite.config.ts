@@ -17,8 +17,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
-      injectRegister: false, // registered in app/updater.ts (update checks + safe reload)
+      // a new version waits until the user taps "지금 적용" (no automatic reload)
+      registerType: "prompt",
+      injectRegister: false, // registered in app/updater.ts
       includeAssets: ["icon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "답답해서 직접 만든다",
@@ -36,9 +37,6 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // take over open tabs as soon as a new version is installed; app/updater.ts reloads safely
-        skipWaiting: true,
-        clientsClaim: true,
         // fonts are split into ~90 unicode-range chunks; cache the ones actually used instead of all of them
         globPatterns: ["**/*.{js,css,html,svg,png}"],
         navigateFallbackDenylist: [/^\/api\//, /^\/_\//],

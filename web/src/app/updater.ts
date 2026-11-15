@@ -1,22 +1,22 @@
 import { useSyncExternalStore } from "react";
 import { registerSW } from "virtual:pwa-register";
 
-// New deploys reach open phones quickly: check on resume and every 5 minutes, then reload
-// unless someone is typing in a sheet (then offer the update instead of losing their input).
+// New deploys are fetched in the background (on resume and every 5 minutes) and then wait.
+// The app never reloads by itself: a banner offers the update and applies it only on tap.
 
 const CHECK_EVERY_MS = 5 * 60 * 1000;
 let pending = false;
+let apply: ((reload?: boolean) => Promise<void>) | null = null;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
-const isEditing = () => document.querySelector(".sheet") !== null;
 
 export function startUpdater() {
   if (!("serviceWorker" in navigator)) return;
-  registerSW({
+  apply = registerSW({
     immediate: true,
-    onNeedReload() {
-      if (isEditing()) { pending = true; notify(); }
-      else window.location.reload();
+    onNeedRefresh() {
+      pending = true;
+      notify();
     },
     onRegisteredSW(_url, reg) {
       if (!reg) return;
@@ -27,8 +27,10 @@ export function startUpdater() {
   });
 }
 
+/** Activates the waiting version and reloads once — only when the user asks for it. */
 export function applyUpdate() {
-  window.location.reload();
+  if (apply) void apply(true);
+  else window.location.reload();
 }
 
 export function useUpdatePending(): boolean {
