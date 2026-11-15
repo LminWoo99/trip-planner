@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
-import { CATEGORY_LABEL, type BranchKey, type Category, type Currency, type Item } from "../../domain/types";
+import { Route, Trash2 } from "lucide-react";
+import { CATEGORY_LABEL, type BranchKey, type Category, type Currency, type Item, type Stop } from "../../domain/types";
 import { create, remove, update, useApp } from "../../app/store";
 import { attempt } from "../toast";
 import { Sheet } from "../Sheet";
 import { CATEGORY_ICON } from "../icons";
 import { shortDay } from "../format";
 import { PlaceSearch } from "../PlaceSearch";
+import { StopsEditor } from "./StopsEditor";
+import { PhotoPicker } from "../Photos";
+import { shrink } from "../../infra/photos";
 
 export interface ItemDraftTarget {
   readonly day: string;
@@ -25,6 +28,10 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
   const [place, setPlace] = useState(item?.place ?? "");
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(item?.lat != null && item?.lng != null ? { lat: item.lat, lng: item.lng } : null);
   const [placeId, setPlaceId] = useState(item?.placeId ?? "");
+  const [stops, setStops] = useState<Stop[]>(item ? [...item.stops] : []);
+  const [removedPhotos, setRemovedPhotos] = useState<Set<string>>(new Set());
+  const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const [showStops, setShowStops] = useState((item?.stops.length ?? 0) > 0 || (item?.cat ?? "") === "trek");
   const [memo, setMemo] = useState(item?.memo ?? "");
   const [cost, setCost] = useState(item?.cost ? String(item.cost) : "");
   const [cur, setCur] = useState<Currency>(item?.cur ?? "VND");
@@ -46,7 +53,9 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
     const data = {
       title: title.trim(), cat, time, place: place.trim(), memo, link: link.trim(),
       cost: Number(cost) || 0, cur: cost ? cur : "",
-      lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, placeId,
+      lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, placeId, stops,
+      ...(newPhotos.length ? { "photos+": await Promise.all(newPhotos.map((f) => shrink(f))) } : {}),
+      ...(removedPhotos.size ? { "photos-": [...removedPhotos] } : {}),
       day, group: group ?? "", branch: branch ?? "",
       ...(moved ? { order: nextOrder } : {}),
     };
@@ -133,10 +142,22 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
           onClear={() => { setPlace(""); setLoc(null); setPlaceId(""); }}
         />
       </div>
+      {showStops || cat === "trek"
+        ? <StopsEditor stops={stops} city={days.find((d) => d.id === day)?.city ?? ""} onChange={setStops} />
+        : <button type="button" className="btn-text" style={{ alignSelf: "flex-start", paddingLeft: 0, marginTop: -6 }} onClick={() => setShowStops(true)}><Route className="icon" />경유지(코스) 추가</button>}
       <label className="field">
         <span>메모</span>
         <textarea id="item-memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
       </label>
+      <PhotoPicker
+        itemId={item?.id ?? null}
+        existing={item?.photos ?? []}
+        removed={removedPhotos}
+        added={newPhotos}
+        onRemoveExisting={(f) => setRemovedPhotos(new Set([...removedPhotos, f]))}
+        onAdd={(fs) => setNewPhotos([...newPhotos, ...fs])}
+        onRemoveAdded={(i) => setNewPhotos(newPhotos.filter((_, k) => k !== i))}
+      />
       <div className="row2">
         <label className="field">
           <span>비용</span>

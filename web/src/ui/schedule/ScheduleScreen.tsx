@@ -20,6 +20,7 @@ const DayMap = lazy(() => import("./DayMap").then((m) => ({ default: m.DayMap })
 const EditList = lazy(() => import("./EditList").then((m) => ({ default: m.EditList })));
 const ItemSheet = lazy(() => import("./ItemSheet").then((m) => ({ default: m.ItemSheet })));
 const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.GroupSheet })));
+const RouteSheet = lazy(() => import("./RouteSheet").then((m) => ({ default: m.RouteSheet })));
 
 const located = (i: Item): LatLng | null => (i.lat !== null && i.lng !== null ? { lat: i.lat, lng: i.lng } : null);
 const DAY_KEY = "schedule-day";
@@ -34,6 +35,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [itemSheet, setItemSheet] = useState<{ item: Item | null; target: ItemDraftTarget } | null>(null);
   const [groupSheet, setGroupSheet] = useState<{ group: Group | null } | null>(null);
   const [bulk, setBulk] = useState<"move" | "delete" | null>(null);
+  const [routeId, setRouteId] = useState<string | null>(null);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -88,7 +90,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
     if (prev && loc && !isSameSpot(prev, loc)) rows.push(<GapRow key={`gap-${it.id}`} from={prev} to={loc} />);
     if (loc) prev = loc;
     const num = it.place ? n++ : null;
-    rows.push(<ItemRow key={it.id} item={it} n={num} className={className} onOpen={() => setItemSheet({ item: it, target: { day: day.id, group: it.group, branch: it.branch } })} onToggle={() => toggleDone(it)} />);
+    rows.push(<ItemRow key={it.id} item={it} n={num} className={className} onOpen={() => setItemSheet({ item: it, target: { day: day.id, group: it.group, branch: it.branch } })} onToggle={() => toggleDone(it)} onRoute={() => setRouteId(it.id)} />);
   };
   for (const e of entries) {
     if (e.kind === "item") { pushItem(e.item); continue; }
@@ -105,6 +107,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
             meName={me?.displayName ?? null}
             otherName={other?.displayName ?? null}
             summit={weatherFor(forecast, "fansipan", day.date)}
+            dayDate={day.date}
             onPick={(k) => pick(g, k)}
             onEdit={() => setGroupSheet({ group: g })}
             onAddItem={(k) => openNew(g.id, k)}
@@ -179,6 +182,10 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
       <Suspense fallback={null}>
         {itemSheet && <ItemSheet item={itemSheet.item} target={itemSheet.target} onClose={() => setItemSheet(null)} />}
         {groupSheet && <GroupSheet group={groupSheet.group} day={day.id} onClose={() => setGroupSheet(null)} />}
+        {routeId && !itemSheet && (() => {
+          const it = snapshot.items.find((x) => x.id === routeId);
+          return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;
+        })()}
       </Suspense>
       {bulk === "move" && (
         <Sheet title={`${selected.size}개를 어느 날로 옮길까요?`} onClose={() => setBulk(null)}>

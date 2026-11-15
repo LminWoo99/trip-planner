@@ -51,6 +51,14 @@ export interface Group {
   readonly selectedAt: string | null;
 }
 
+/** A waypoint inside one item, e.g. a stop on a trekking course. */
+export interface Stop {
+  readonly name: string;
+  readonly placeId: string;
+  readonly lat: number | null;
+  readonly lng: number | null;
+}
+
 export interface Item {
   readonly id: string;
   readonly day: string;
@@ -69,6 +77,9 @@ export interface Item {
   readonly done: boolean;
   readonly group: string | null;
   readonly branch: BranchKey | null;
+  readonly stops: readonly Stop[];
+  /** file names of photos attached to the memo */
+  readonly photos: readonly string[];
 }
 
 export interface Place {

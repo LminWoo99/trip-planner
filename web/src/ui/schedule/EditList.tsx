@@ -8,6 +8,7 @@ import { reorder, type DayEntry } from "../../domain/timeline";
 import { reorderRecords } from "../../app/store";
 import { attempt } from "../toast";
 import { Marker } from "./ItemCard";
+import { MemoToggle } from "./MemoToggle";
 
 const entryId = (e: DayEntry) => (e.kind === "item" ? e.item.id : e.group.id);
 const metaOf = (it: Item) => [it.time, it.place].filter(Boolean);
@@ -55,13 +56,14 @@ export function EditList({ entries, numbers, selected, onToggleSelect, onOpenIte
                     <button className="sel" role="checkbox" aria-checked={selected.has(e.item.id)} aria-label={`${e.item.title} 선택`} onClick={() => onToggleSelect(e.item.id)}>
                       <span className="box"><Check className="icon" /></span>
                     </button>
-                    <button className="e-card" onClick={() => onOpenItem(e.item)}>
+                    <div className="e-card">
                       <Marker item={e.item} n={numbers.get(e.item.id) ?? null} />
                       <div className="e-txt">
-                        <div className="e-title">{e.item.title}</div>
+                        <button className="e-title" style={{ textAlign: "left", width: "100%" }} onClick={() => onOpenItem(e.item)}>{e.item.title}</button>
                         {metaOf(e.item).length > 0 && <div className="e-meta">{metaOf(e.item).map((m) => <span key={m}>{m}</span>)}</div>}
+                        {e.item.memo && <MemoToggle memo={e.item.memo} />}
                       </div>
-                    </button>
+                    </div>
                     {handle}
                   </>
                 )}
@@ -145,10 +147,11 @@ function ForkBlock({ entry, handle, onOpenItem, onAddItem, onEditGroup }: {
                   {(h) => (
                     <>
                       {num !== null ? <span className="p-mk">{num}</span> : <span className="p-mk dot" />}
-                      <button className="e-txt" style={{ textAlign: "left" }} onClick={() => onOpenItem(it)}>
-                        <div className="e-title">{it.title}</div>
+                      <div className="e-txt">
+                        <button className="e-title" style={{ textAlign: "left", width: "100%" }} onClick={() => onOpenItem(it)}>{it.title}</button>
                         {metaOf(it).length > 0 && <div className="e-meta">{metaOf(it).map((m) => <span key={m}>{m}</span>)}</div>}
-                      </button>
+                        {it.memo && <MemoToggle memo={it.memo} />}
+                      </div>
                       {h}
                     </>
                   )}

@@ -42,6 +42,18 @@ export default defineConfig({
             handler: "CacheFirst",
             options: { cacheName: "fonts", expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } },
           },
+          // protected photos: the token in the query changes, so match on the path only.
+          // thumbnails and full size share a path, so each size gets its own cache.
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/files/items/") && url.searchParams.get("thumb") === "240x240",
+            handler: "CacheFirst",
+            options: { cacheName: "photos-thumb", matchOptions: { ignoreSearch: true }, expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 60 } },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/files/items/") && url.searchParams.get("thumb") !== "240x240",
+            handler: "CacheFirst",
+            options: { cacheName: "photos-full", matchOptions: { ignoreSearch: true }, expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 60 } },
+          },
           {
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/,
             handler: "NetworkFirst",

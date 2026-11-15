@@ -4,7 +4,7 @@ import type { Group, Item } from "./types";
 
 const item = (over: Partial<Item>): Item => ({
   id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", placeId: "", lat: null, lng: null,
-  memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, ...over,
+  memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], photos: [], ...over,
 });
 
 const group = (over: Partial<Group> = {}): Group => ({
@@ -110,5 +110,28 @@ describe("reorder", () => {
     const changes = reorder(list, "b", 1);
     // then
     expect(changes).toEqual([]);
+  });
+});
+
+describe("경로", () => {
+  it("화살표나 줄바꿈으로 적은 코스를 경유지 이름으로 나눈다", async () => {
+    const { splitCourse } = await import("./geo");
+    // given
+    const text = "Sapana Bistro(카페) → Sapana 2 → Cầu Treo Lao Chải San II\nLao Chai Valley View -> 타반 마을";
+    // when
+    const names = splitCourse(text);
+    // then
+    expect(names).toEqual(["Sapana Bistro(카페)", "Sapana 2", "Cầu Treo Lao Chải San II", "Lao Chai Valley View", "타반 마을"]);
+  });
+
+  it("위치가 있는 경유지 사이 거리만 더한다", async () => {
+    const { courseKm } = await import("./geo");
+    // given  ~1.1km apart on the same meridian, one stop without a position
+    const stops = [{ lat: 22.33, lng: 103.84 }, { lat: null, lng: null }, { lat: 22.34, lng: 103.84 }];
+    // when
+    const km = courseKm(stops);
+    // then  1.11km × 1.3 detour
+    expect(km).toBeGreaterThan(1.4);
+    expect(km).toBeLessThan(1.5);
   });
 });
