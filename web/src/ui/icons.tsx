@@ -1,11 +1,11 @@
 import {
   Bed, Bus, Camera, Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Coffee,
-  Footprints, Plane, ShoppingBag, Sparkles, Sun, UtensilsCrossed, type LucideIcon,
+  Footprints, Plane, ShoppingBag, Sparkles, Sun, Utensils, type LucideIcon,
 } from "lucide-react";
 import type { Category } from "../domain/types";
 
 export const CATEGORY_ICON: Readonly<Record<Category, LucideIcon>> = {
-  flight: Plane, move: Bus, stay: Bed, food: UtensilsCrossed, cafe: Coffee,
+  flight: Plane, move: Bus, stay: Bed, food: Utensils, cafe: Coffee,
   sight: Camera, trek: Footprints, shop: ShoppingBag, etc: Sparkles,
 };
 

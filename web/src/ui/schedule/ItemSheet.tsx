@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { LocateFixed, MapPinned, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { CATEGORY_LABEL, type BranchKey, type Category, type Currency, type Item } from "../../domain/types";
 import { create, remove, update, useApp } from "../../app/store";
-import { geocode } from "../../infra/geocode";
 import { attempt } from "../toast";
 import { Sheet } from "../Sheet";
 import { CATEGORY_ICON } from "../icons";
 import { shortDay } from "../format";
-import { LocationPicker } from "../LocationPicker";
+import { PlaceSearch } from "../PlaceSearch";
 
 export interface ItemDraftTarget {
   readonly day: string;
@@ -25,8 +24,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
   const [time, setTime] = useState(item?.time ?? "");
   const [place, setPlace] = useState(item?.place ?? "");
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(item?.lat != null && item?.lng != null ? { lat: item.lat, lng: item.lng } : null);
-  const [locState, setLocState] = useState<"" | "busy" | "miss">("");
-  const [picking, setPicking] = useState(false);
+  const [placeId, setPlaceId] = useState(item?.placeId ?? "");
   const [memo, setMemo] = useState(item?.memo ?? "");
   const [cost, setCost] = useState(item?.cost ? String(item.cost) : "");
   const [cur, setCur] = useState<Currency>(item?.cur ?? "VND");
@@ -39,15 +37,6 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
 
   const days = [...snapshot.days].sort((a, b) => a.n - b.n);
   const forks = snapshot.groups.filter((g) => g.day === day);
-  const placeChanged = place !== (item?.place ?? "");
-
-  async function findLocation() {
-    if (!place.trim()) return;
-    setLocState("busy");
-    const hit = await geocode(place.trim(), days.find((d) => d.id === day)?.city ?? "");
-    setLoc(hit);
-    setLocState(hit ? "" : "miss");
-  }
 
   async function save() {
     const [group, branch] = parseSlot(forks.some((g) => slot.startsWith(g.id)) ? slot : "");
@@ -57,7 +46,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
     const data = {
       title: title.trim(), cat, time, place: place.trim(), memo, link: link.trim(),
       cost: Number(cost) || 0, cur: cost ? cur : "",
-      lat: loc?.lat ?? 0, lng: loc?.lng ?? 0,
+      lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, placeId,
       day, group: group ?? "", branch: branch ?? "",
       ...(moved ? { order: nextOrder } : {}),
     };
@@ -127,18 +116,22 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
         </label>
       )}
       <div className="field">
-        <label htmlFor="item-place" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink2)" }}>장소 (지도 검색어)</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input id="item-place" className="input" value={place} onChange={(e) => { setPlace(e.target.value); setLocState(""); }} placeholder="예: Phở Hà Nội Sapa" />
-          <button type="button" className="btn ghost" style={{ height: 46, fontSize: 14, flex: "none" }} disabled={!place.trim() || locState === "busy"} onClick={findLocation}>
-            <LocateFixed className="icon" />위치
-          </button>
-        </div>
-        <small style={{ fontSize: 12, color: locState === "miss" ? "var(--danger)" : "var(--ink3)" }}>
-          {locState === "busy" ? "찾는 중이에요" : locState === "miss" ? "위치를 못 찾았어요. 아래 지도에서 직접 찍어 주세요." : loc ? (placeChanged ? "위치를 찾았어요. 지도에 표시돼요." : "지도에 표시되는 장소예요") : "위치를 찾아야 지도와 거리 표시에 나와요"}
-        </small>
-        {!picking && <button type="button" className="btn-text" style={{ alignSelf: "flex-start", paddingLeft: 0 }} onClick={() => setPicking(true)}><MapPinned className="icon" />지도에서 직접 찍기</button>}
-        {(picking || locState === "miss") && <LocationPicker value={loc} city={days.find((d) => d.id === day)?.city ?? ""} onChange={(v) => { setLoc(v); setLocState(""); }} />}
+        <label htmlFor="item-place" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink2)" }}>장소</label>
+        <PlaceSearch
+          id="item-place"
+          value={place}
+          city={days.find((d) => d.id === day)?.city ?? ""}
+          located={loc !== null}
+          onText={(t) => { setPlace(t); setLoc(null); setPlaceId(""); }}
+          onPick={(p) => {
+            setPlace(p.name);
+            setLoc({ lat: p.lat, lng: p.lng });
+            setPlaceId(p.placeId);
+            if (!title.trim()) setTitle(p.name);
+            if (!link.trim() && p.url) setLink(p.url);
+          }}
+          onClear={() => { setPlace(""); setLoc(null); setPlaceId(""); }}
+        />
       </div>
       <label className="field">
         <span>메모</span>

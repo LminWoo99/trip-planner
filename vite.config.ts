@@ -5,6 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   root: "web",
+  envDir: "..", // VITE_GOOGLE_MAPS_KEY lives in the repo-root .env (not in git)
   build: { outDir: "../pb_public", emptyOutDir: true },
   server: {
     port: 5173,
@@ -45,12 +46,6 @@ export default defineConfig({
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/,
             handler: "NetworkFirst",
             options: { cacheName: "weather", networkTimeoutSeconds: 6 },
-          },
-          {
-            // map tiles: keep what was seen so the trekking map works without signal
-            urlPattern: /^https:\/\/[abc]?\.?tile\.(openstreetmap|opentopomap)\.org\/.*/,
-            handler: "CacheFirst",
-            options: { cacheName: "tiles", expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
         ],
       },

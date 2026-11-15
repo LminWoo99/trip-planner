@@ -82,8 +82,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .wx-empty { margin-top: 10px; font-size: 12px; color: var(--ink3); }
 
 .map { margin: 0 16px; height: 160px; border-radius: 12px; background: #eef1ec; position: relative; overflow: hidden; z-index: 0; }
-.map .leaflet-container { width: 100%; height: 100%; background: #eef1ec; font-family: var(--font); }
-.map-pin { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; border: 2px solid #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.25); font-variant-numeric: tabular-nums; }
 .map-note { position: absolute; left: 8px; bottom: 8px; font-size: 11px; background: rgba(255,255,255,.92); padding: 3px 7px; border-radius: 6px; color: var(--ink2); z-index: 500; }
 .map-route { position: absolute; right: 8px; bottom: 8px; height: 30px; border: 1px solid var(--line); background: #fff; border-radius: 8px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; padding: 0 9px; color: var(--ink); text-decoration: none; z-index: 500; }
 .map-route .icon { width: 14px; height: 14px; }
@@ -262,6 +260,15 @@ textarea.input { height: auto; min-height: 84px; padding: 10px 12px; line-height
 .btn.ghost { border: 1px solid var(--line); color: var(--ink); }
 .btn.ghost.danger { color: var(--danger); }
 
+.place-search { display: flex; flex-direction: column; gap: 6px; }
+.suggest { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); box-shadow: 0 6px 18px rgba(22,25,29,.08); overflow: hidden; }
+.suggest-row { width: 100%; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; text-align: left; }
+.suggest-row + .suggest-row { border-top: 1px solid var(--line); }
+.suggest-row .icon { width: 16px; height: 16px; margin-top: 2px; color: var(--ink3); }
+.suggest-main { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-sub { display: block; font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-attr { padding: 6px 12px; font-size: 11px; color: var(--ink3); text-align: right; border-top: 1px solid var(--line); }
+
 /* ---------- list screens ---------- */
 .section { padding: 16px; }
 .section h2 { margin: 0 0 10px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
@@ -292,6 +299,7 @@ textarea.input { height: auto; min-height: 84px; padding: 10px 12px; line-height
 .gate-q { font-size: 26px; font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
 .gate-hint { color: var(--ink2); font-size: 14px; margin: 0; line-height: 1.5; word-break: keep-all; }
 .gate-bottom { display: flex; flex-direction: column; gap: 12px; }
+.gate-bottom .btn { flex: none; }
 .code-input { width: 100%; height: 60px; border: 1.5px solid var(--line); border-radius: 14px; font-size: 26px; font-weight: 600; letter-spacing: .5em; text-align: center; font-variant-numeric: tabular-nums; background: var(--soft); padding-left: .5em; }
 .code-input:focus { outline: none; border-color: var(--ink); background: var(--bg); }
 .code-input.wrong { border-color: var(--danger); animation: shake .32s; }

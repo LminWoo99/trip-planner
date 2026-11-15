@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settle, toKrw, totalsByCategory } from "./money";
+import { poolBalance, settle, toKrw, totalSpent, totalsByCategory } from "./money";
 import type { Expense, Member } from "./types";
 
 const rates = { vndKrw: 0.053, usdKrw: 1395 };
@@ -7,7 +7,7 @@ const minu: Member = { id: "m1", user: "u1", displayName: "민우" };
 const ryeojin: Member = { id: "m2", user: "u2", displayName: "려진" };
 
 const expense = (over: Partial<Expense>): Expense => ({
-  id: "e", title: "", amount: 0, cur: "KRW", payer: minu.id, split: "half", cat: "식비", day: null, memo: "", created: "", ...over,
+  id: "e", kind: "spend", title: "", amount: 0, cur: "KRW", payer: minu.id, fromPool: false, split: "half", cat: "식비", day: null, memo: "", created: "", ...over,
 });
 
 describe("toKrw", () => {
@@ -74,5 +74,45 @@ describe("totalsByCategory", () => {
     // then
     expect(totals.get("식비")).toBe(12_790);
     expect(totals.get("교통")).toBe(5_000);
+  });
+});
+
+describe("공용비", () => {
+  const deposit = (payer: string, amount: number) => expense({ kind: "deposit", payer, amount, cur: "VND" });
+
+  it("잔액은 통화별로 넣은 돈에서 공용비로 쓴 돈을 뺀다", () => {
+    // given
+    const expenses = [deposit(minu.id, 1_000_000), deposit(ryeojin.id, 1_000_000), expense({ fromPool: true, payer: null, amount: 300_000, cur: "VND" })];
+    // when
+    const balance = poolBalance(expenses);
+    // then
+    expect(balance.get("VND")).toBe(1_700_000);
+  });
+
+  it("공용비 입금은 총 지출에 들어가지 않고 공용비로 쓴 돈은 들어간다", () => {
+    // given
+    const expenses = [deposit(minu.id, 1_000_000), expense({ fromPool: true, payer: null, amount: 100_000, cur: "VND" })];
+    // when
+    const total = totalSpent(expenses, rates);
+    // then
+    expect(total).toBeCloseTo(5_300);
+  });
+
+  it("같은 금액을 넣고 공용비로만 쓰면 정산할 돈이 없다", () => {
+    // given
+    const expenses = [deposit(minu.id, 1_000_000), deposit(ryeojin.id, 1_000_000), expense({ fromPool: true, payer: null, amount: 500_000, cur: "VND" })];
+    // when
+    const result = settle(expenses, [minu, ryeojin], rates);
+    // then
+    expect(result).toBeNull();
+  });
+
+  it("넣은 금액이 다르면 차액의 절반을 정산한다", () => {
+    // given  2,000,000₫ vs 1,000,000₫ → gap 53,000원, half 26,500원
+    const expenses = [deposit(minu.id, 2_000_000), deposit(ryeojin.id, 1_000_000)];
+    // when
+    const result = settle(expenses, [minu, ryeojin], rates);
+    // then
+    expect(result).toEqual({ from: ryeojin, to: minu, amount: 26_500 });
   });
 });

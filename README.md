@@ -4,9 +4,9 @@
 `https://trip.minu-dev.win` · 홈 화면 이름 "우❤️리오 여행"
 
 - 일정 타임라인 + **갈림길(플랜 A/B/C)**: 당일 아침 날씨 보고 한 명이 고르면 상대 폰에도 바로 반영
-- 날씨(Open-Meteo, 사파 시내 + 판시판 정상), 지도(Leaflet + OSM, 트레킹 날은 등고선 지도)
+- 날씨(Open-Meteo, 사파 시내 + 판시판 정상), Google 지도(트레킹 날은 지형 지도), Google 장소 검색
 - 장소, 경비·정산, 준비물, 예약, 공유 메모, 긴급 연락처
-- PWA: 홈 화면 설치, 오프라인 읽기(마지막으로 받은 일정·예보·지도 타일)
+- PWA: 홈 화면 설치, 오프라인 읽기(마지막으로 받은 일정·예보). 지도는 온라인일 때만
 
 ## 구조
 
@@ -15,7 +15,7 @@ pb_migrations/   스키마 (PocketBase 시작 시 자동 적용)
 pb_hooks/        입장 코드 확인 라우트 (/api/gate/*)
 web/src/
   domain/        하루 일정 구성, 정산, 거리 계산 — 순수 TS, 외부 의존 없음
-  infra/         PocketBase, Open-Meteo, Nominatim
+  infra/         PocketBase, Open-Meteo, Google Maps Platform
   app/           상태(스냅샷 + 실시간 반영 + 오프라인 캐시)
   ui/            화면
 scripts/         seed-import, setup-vm, deploy, backup, get-pocketbase
@@ -30,11 +30,13 @@ PocketBase 프로세스 하나가 API·실시간·정적 파일(`pb_public/`)을
 - `/api/gate/check`, `/api/gate/enter`는 IP당 1분 5회로 제한(초기 마이그레이션에서 설정).
 - `users`는 회원가입·비밀번호 로그인이 꺼져 있다. 모든 컬렉션은 해당 여행 멤버만 읽고 쓸 수 있다(기본 거부).
 - `seed.json`(실제 일정·예약)과 `.env`, `pb_data/`는 git에 올리지 않는다.
+- Google 지도 키는 브라우저에 노출되는 키라 Google Cloud에서 **HTTP 리퍼러**(`https://trip.minu-dev.win/*`, `http://localhost:5173/*`, `http://127.0.0.1:8090/*`)와 **API**(Maps JavaScript API, Places API (New))로 제한하고 일일 할당량을 낮게 건다.
 
 ## 로컬 개발
 
 ```bash
 npm install
+cp .env.example .env                              # VITE_GOOGLE_MAPS_KEY 채우기
 ./scripts/get-pocketbase.sh                       # 이 OS/아키텍처용 바이너리
 ./pocketbase superuser upsert admin@trip.local <비밀번호> --dir=./pb_data   # 먼저! (없으면 설치 페이지가 뜸)
 TRIP_GATE_CODE=1234 ./pocketbase serve --http=127.0.0.1:8090 --dir=./pb_data   # 로컬용 아무 4자리
@@ -75,7 +77,7 @@ crontab -l; ls /opt
 ```yaml
 ingress:
   - hostname: trip.minu-dev.win
-    service: http://<새 VM 이름>.orb.local:8090
+    service: http://<VM IP>:8090        # orb list 의 IP. 터널(root 서비스)에서는 .orb.local 이름이 안 풀린다
   # ... 기존 항목들
   - service: http_status:404
 ```
@@ -88,6 +90,9 @@ sudo launchctl kickstart -k system/com.cloudflare.cloudflared   # 또는 cloudfl
 
 VM에서 돌리고 싶다면: VM에 cloudflared를 설치하고(`sudo apt install cloudflared` 또는 공식 .deb) 같은 설정 파일을 `/etc/cloudflared/`에 두고 `sudo cloudflared service install`. 이때 ingress는 `http://127.0.0.1:8090`, `.env`의 `PB_HTTP=127.0.0.1:8090`.
 
+> VM을 다시 만들면 IP가 바뀔 수 있다. `orb list`로 새 IP를 확인해 config.yml의 trip 줄만 고치고 터널을 재시작한다.
+> 터널을 재시작하면 `ssh minu-dev.win`도 이 터널을 지나므로 잠깐 끊긴다.
+
 ### 1단계: 새 VM 세팅 (최초 1회)
 
 ```bash
@@ -96,6 +101,13 @@ orb create ubuntu <새 VM 이름>        # arm64
 orb shell -m <새 VM 이름>
 uname -a                               # Linux 여야 VM 안
 curl -fsSL https://raw.githubusercontent.com/LminWoo99/trip-planner/main/scripts/setup-vm.sh | bash
+```
+
+Google 지도 키를 VM `.env`에 넣고 다시 빌드한다(키는 빌드할 때 주입된다).
+
+```bash
+echo 'VITE_GOOGLE_MAPS_KEY=AIza...' >> /opt/trip-planner/.env
+cd /opt/trip-planner && npm run build && pm2 restart trip-planner
 ```
 
 `setup-vm.sh`가 하는 일: git·sqlite3·Node LTS·pm2 설치 → `/opt/trip-planner`에 clone → PocketBase(linux arm64) 다운로드 → 빌드 → 입장 코드를 물어 `.env` 생성 → `pm2 start` + 부팅 시 자동 시작 → 매일 04:00 백업 크론 등록.
@@ -116,6 +128,7 @@ PB_ADMIN_EMAIL=<관리자 이메일> PB_ADMIN_PASSWORD=<비밀번호> \
 ```
 
 민우·려진 계정, 여행, 일정 33개, 예약 7개, 장소 5개, 준비물 17개가 생긴다. 같은 여행이 이미 있으면 중복 생성하지 않고 멈춘다.
+위치가 빠진 일정은 앱의 **더보기 → 위치 없는 장소 채우기**에서 Google 검색 결과를 확인하고 한 번에 채운다.
 관리 화면은 `https://trip.minu-dev.win/_/` (관리자 계정으로만).
 
 ### 3단계: 업데이트 배포 (코드 수정 후마다)
@@ -158,4 +171,4 @@ sqlite3 /tmp/restore/pb_data/data.db "select count(*) from items; select title f
 
 - iOS Safari / Android Chrome에서 홈 화면에 추가 → 아이콘 이름 "우❤️리오 여행"
 - 두 폰에서 동시에 열고 갈림길 선택 → 상대 화면 반영
-- 비행기 모드에서 앱 열기 → 일정·메모 읽기, 상단 "오프라인, 마지막 동기화 …"
+- 비행기 모드에서 앱 열기 → 일정·메모 읽기, 상단 "오프라인, 마지막 동기화 …" (지도는 "오프라인이라 지도를 못 불러와요")
