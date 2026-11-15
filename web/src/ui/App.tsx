@@ -4,6 +4,7 @@ import { start } from "../app/store";
 import { Gate } from "./Gate";
 const Shell = lazy(() => import("./Shell").then((m) => ({ default: m.Shell })));
 import { Toast } from "./toast";
+import { UpdateBanner } from "./UpdateBanner";
 
 const subscribeAuth = (l: () => void) => pb.authStore.onChange(l);
 const isAuthed = () => pb.authStore.isValid;
@@ -14,6 +15,7 @@ export function App() {
     <>
       {authed ? <Suspense fallback={null}><Shell /></Suspense> : <Gate onEnter={() => void start()} />}
       <Toast />
+      <UpdateBanner />
     </>
   );
 }
