@@ -50,11 +50,29 @@ export function formatKm(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }
 
-export const gmapsSearch = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+export interface MapTarget {
+  readonly place: string;
+  readonly placeId: string;
+}
 
-export function gmapsRoute(stops: readonly string[]): string | null {
+/** Opens the exact place when a Google place id is known, otherwise searches by name. */
+export function gmapsSearch(t: MapTarget): string {
+  const base = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.place)}`;
+  return t.placeId ? `${base}&query_place_id=${encodeURIComponent(t.placeId)}` : base;
+}
+
+export function gmapsRoute(stops: readonly MapTarget[]): string | null {
   if (stops.length < 2) return null;
   const enc = encodeURIComponent;
-  const waypoints = stops.slice(1, -1).join("|");
-  return `https://www.google.com/maps/dir/?api=1&origin=${enc(stops[0])}&destination=${enc(stops[stops.length - 1])}${waypoints ? `&waypoints=${enc(waypoints)}` : ""}`;
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+  const mid = stops.slice(1, -1);
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${enc(first.place)}&destination=${enc(last.place)}`;
+  if (first.placeId) url += `&origin_place_id=${enc(first.placeId)}`;
+  if (last.placeId) url += `&destination_place_id=${enc(last.placeId)}`;
+  if (mid.length) {
+    url += `&waypoints=${enc(mid.map((s) => s.place).join("|"))}`;
+    if (mid.every((s) => s.placeId)) url += `&waypoint_place_ids=${enc(mid.map((s) => s.placeId).join("|"))}`;
+  }
+  return url;
 }

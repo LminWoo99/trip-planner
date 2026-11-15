@@ -134,10 +134,53 @@ test.describe("일정", () => {
   });
 });
 
+test.describe("Google 지도·장소", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+
+  test("동선 지도가 Google 지도로 뜨고 번호 핀이 찍힌다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 5);
+    const map = page.locator(".map");
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator(".map-empty")).toHaveCount(0, { timeout: 15000 });
+    await expect(map.locator(".gm-style")).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2500);
+    await shot(page, "80-google-map");
+  });
+
+  test("일정 추가에서 이름을 치면 Google 후보가 뜨고 고르면 위치가 채워진다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 2);
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await page.locator("#item-place").fill("Pistachio Hotel Sapa");
+    const first = page.locator(".suggest-row").first();
+    await expect(first).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Powered by Google")).toBeVisible();
+    await shot(page, "81-place-suggest");
+    await first.click();
+    await expect(page.getByText("지도에 표시되는 장소예요")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel("제목")).not.toHaveValue("");
+    await shot(page, "82-place-picked");
+  });
+
+  test("위치 없는 장소 채우기가 Google에서 후보를 찾아 보여준다", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "더보기" }).click();
+    await page.getByRole("button", { name: /위치 없는 장소 채우기/ }).click();
+    await page.getByRole("button", { name: /Google에서 찾기/ }).click();
+    await expect(page.getByRole("button", { name: /찾는 중이에요/ })).toBeVisible();
+    const save = page.getByRole("button", { name: /선택한 \d+곳 저장/ });
+    await expect(save).toBeVisible({ timeout: 90000 });
+    await expect(save).not.toHaveText("선택한 0곳 저장");
+    await page.locator(".sheet-body").evaluate((el) => el.scrollTo(0, 0));
+    await shot(page, "83-fill-locations");
+  });
+});
+
 test.describe("다른 탭", () => {
   test.use({ storageState: "qa/.auth/minu.json" });
 
-  test("경비를 기록하면 정산 결과가 나온다", async ({ page }) => {
+  test("지출을 기록하면 총 지출에 잡히고 정산 탭에서 보낼 돈이 나온다", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "경비" }).click();
     await page.getByRole("button", { name: "지출 추가" }).click();
@@ -145,13 +188,47 @@ test.describe("다른 탭", () => {
     await page.locator("#exp-amount").fill("200000");
     await shot(page, "50-expense-sheet");
     await page.getByRole("button", { name: "기록", exact: true }).click();
-    await expect(page.getByText("려진 → 민우 5,300원")).toBeVisible();
+    await expect(page.locator(".big")).toHaveText("10,600원");
     await shot(page, "51-expenses");
+    await page.getByRole("tab", { name: "정산" }).click();
+    await expect(page.getByText("려진 → 민우 5,300원")).toBeVisible();
+    await shot(page, "52-settle");
     // clean up for the other project
+    await page.getByRole("tab", { name: "지출" }).click();
     await page.getByRole("button", { name: /쌀국수 두 그릇/ }).click();
     await page.getByRole("button", { name: "삭제" }).click();
     await page.getByRole("button", { name: "삭제하기" }).click();
-    await expect(page.getByText("정산할 돈이 없어요")).toBeVisible();
+    await expect(page.locator(".big")).toHaveText("0원");
+  });
+
+  test("공용비로 쓰면 잔액이 줄고 넣은 금액 차이만 정산된다", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "경비" }).click();
+    await page.getByRole("button", { name: "넣기" }).click();
+    await page.locator("#dep-amount").fill("1000000");
+    await page.getByRole("button", { name: "넣기", exact: true }).last().click();
+    await expect(page.getByText("1,000,000₫")).toBeVisible();
+
+    await page.getByRole("button", { name: "지출 추가" }).click();
+    await page.getByLabel("내용").fill("택시");
+    await page.locator("#exp-amount").fill("150000");
+    await page.getByRole("button", { name: "공용비", exact: true }).click();
+    await page.getByRole("button", { name: "기록", exact: true }).click();
+    await expect(page.getByText("850,000₫")).toBeVisible();
+    await shot(page, "53-pool");
+
+    await page.getByRole("tab", { name: "정산" }).click();
+    // only 민우 deposited 1,000,000₫ → 려진 owes half of 53,000원
+    await expect(page.getByText("려진 → 민우 26,500원")).toBeVisible();
+
+    // clean up
+    await page.getByRole("button", { name: /민우 입금/ }).click();
+    await page.getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("tab", { name: "지출" }).click();
+    await page.getByRole("button", { name: /택시/ }).click();
+    await page.getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.locator(".big")).toHaveText("0원");
   });
 
   test("장소·준비물·더보기 화면이 데이터와 함께 보인다", async ({ page }) => {

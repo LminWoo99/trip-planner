@@ -4,6 +4,7 @@ import type { Booking } from "../domain/types";
 import { create, remove, signOut, update, updateTrip, useApp } from "../app/store";
 import { attempt, toast } from "./toast";
 import { Sheet } from "./Sheet";
+import { FillLocationsSheet } from "./FillLocationsSheet";
 
 const BOOKING_ICON = { flight: Plane, stay: BedDouble, move: Bus, tour: MapIcon, etc: Ticket } as const;
 const BOOKING_LABEL = { flight: "항공", stay: "숙소", move: "버스·이동", tour: "투어", etc: "기타" } as const;
@@ -27,6 +28,7 @@ export function MoreScreen() {
   const { snapshot } = useApp();
   const [editing, setEditing] = useState<Booking | "new" | null>(null);
   const [settings, setSettings] = useState(false);
+  const [fill, setFill] = useState(false);
   if (!snapshot) return null;
 
   return (
@@ -79,12 +81,17 @@ export function MoreScreen() {
         <div className="section">
           <div className="list">
             <button className="li" onClick={() => setSettings(true)}><div className="li-title">환율·예산 설정</div><div className="li-sub num" style={{ paddingRight: 8 }}>1₫={snapshot.trip.vndKrw}원, $1={snapshot.trip.usdKrw.toLocaleString()}원</div></button>
+            <button className="li" onClick={() => setFill(true)}>
+              <div className="li-title">위치 없는 장소 채우기</div>
+              <div className="li-sub num" style={{ paddingRight: 8 }}>{snapshot.items.filter((i) => i.place && i.lat === null).length + snapshot.places.filter((p) => p.lat === null).length}곳</div>
+            </button>
             <button className="li" onClick={signOut}><div className="li-title" style={{ display: "flex", gap: 6, alignItems: "center" }}><LogOut className="icon" />이 폰에서 나가기</div></button>
           </div>
         </div>
       </div>
       {editing && <BookingSheet booking={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {settings && <SettingsSheet onClose={() => setSettings(false)} />}
+      {fill && <FillLocationsSheet onClose={() => setFill(false)} />}
     </>
   );
 }
