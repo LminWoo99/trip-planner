@@ -1,5 +1,7 @@
 import { importLibrary } from "@googlemaps/js-api-loader";
 import { loadMaps } from "./google";
+import { formatHm } from "../domain/clock";
+import { deviceTz } from "./weather";
 
 // Real travel between two stops from Google Routes (driving, motorbike, walking, transit).
 // Called only when a leg sheet is opened; results are kept per leg and mode for the session.
@@ -39,11 +41,11 @@ export interface RouteResult {
 type LatLng = google.maps.LatLngLiteral;
 const cache = new Map<string, Promise<RouteResult | null>>();
 
-export function computeLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Date): Promise<RouteResult | null> {
+export function computeLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Date, tz = deviceTz()): Promise<RouteResult | null> {
   const when = departure ? Math.floor(departure.getTime() / 900_000) : "now"; // 15-minute buckets
-  const key = `${from.lat},${from.lng}|${to.lat},${to.lng}|${mode}|${when}`;
+  const key = `${from.lat},${from.lng}|${to.lat},${to.lng}|${mode}|${when}|${tz}`;
   if (!cache.has(key)) {
-    const p = fetchLeg(from, to, mode, departure).catch((e) => { cache.delete(key); throw e; });
+    const p = fetchLeg(from, to, mode, departure, tz).catch((e) => { cache.delete(key); throw e; });
     cache.set(key, p);
   }
   return cache.get(key)!;
@@ -52,7 +54,7 @@ export function computeLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Dat
 const mins = (ms: number | null | undefined) => Math.max(1, Math.round((ms ?? 0) / 60_000));
 const stripHtml = (s: string) => s.replace(/<[^>]+>/g, "").trim();
 
-async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Date): Promise<RouteResult | null> {
+async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure: Date | undefined, tz: string): Promise<RouteResult | null> {
   await loadMaps(); // configures the loader with the key
   const { Route } = await importLibrary("routes");
   // Google only accepts future departure times; past or missing → leave now
@@ -80,7 +82,7 @@ async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Date):
         departAt ??= t.departureTime;
         arriveAt = t.arrivalTime;
         const line = t.transitLine;
-        const at = (d: Date | null) => (d ? d.toTimeString().slice(0, 5) : "");
+        const at = (d: Date | null) => (d ? formatHm(d, tz) : "");
         steps.push({
           kind: "transit",
           text: `${line?.name || line?.shortName || "대중교통"}${t.headsign ? ` · ${t.headsign} 방면` : ""}`,

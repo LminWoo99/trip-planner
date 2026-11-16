@@ -5,7 +5,8 @@ import { depositsByMember, formatKrw, poolBalance, settle, toKrw, totalSpent, to
 import { create, remove, update, useApp } from "../app/store";
 import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
-import { shortDay, todayIso } from "./format";
+import { shortDay } from "./format";
+import { tripToday } from "./useNow";
 
 const CATS = ["식비", "교통", "숙소", "투어", "쇼핑", "기타"];
 const CUR_SIGN: Record<Currency, string> = { VND: "₫", KRW: "원", USD: "$" };
@@ -182,7 +183,7 @@ function SettleView({ onEditDeposit }: { onEditDeposit: (e: Expense) => void }) 
 
 function ExpenseSheet({ expense, defaultPayer, onClose }: { expense: Expense | null; defaultPayer: string; onClose: () => void }) {
   const { snapshot } = useApp();
-  const todayDay = snapshot?.days.find((d) => d.date === todayIso())?.id ?? "";
+  const todayDay = snapshot ? tripToday(snapshot.days, new Date()).day?.id ?? "" : "";
   const [title, setTitle] = useState(expense?.title ?? "");
   const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
   const [cur, setCur] = useState<Currency>(expense?.cur ?? "VND");

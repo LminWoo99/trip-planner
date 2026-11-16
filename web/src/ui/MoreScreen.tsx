@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { BedDouble, Bus, Copy, ExternalLink, LogOut, Map as MapIcon, Plane, Plus, Ticket } from "lucide-react";
+import { BedDouble, Bus, CircleCheck, Copy, ExternalLink, LogOut, Map as MapIcon, Plane, Plus, Ticket } from "lucide-react";
 import type { Booking } from "../domain/types";
+import { bookingDate } from "../domain/now";
+import { tripToday, useNow } from "./useNow";
+import { TicketStrip } from "./Tickets";
+import { PhotoPicker } from "./Photos";
+import { shrink } from "../infra/photos";
 import { create, remove, signOut, update, updateTrip, useApp } from "../app/store";
 import { attempt, toast } from "./toast";
 import { Sheet } from "./Sheet";
@@ -27,6 +32,9 @@ async function copy(text: string, done: string) {
 
 export function MoreScreen() {
   const { snapshot } = useApp();
+  const now = useNow();
+  const todayDate = snapshot ? tripToday(snapshot.days, now).day?.date ?? null : null;
+  const isToday = (b: Booking) => !!todayDate && !!snapshot && bookingDate(b, snapshot.trip.start) === todayDate;
   const [editing, setEditing] = useState<Booking | "new" | null>(null);
   const [settings, setSettings] = useState(false);
   const [fill, setFill] = useState(false);
@@ -44,11 +52,12 @@ export function MoreScreen() {
           <div className="list">
             {sortBookings(snapshot.bookings).map((b) => {
               const Icon = BOOKING_ICON[b.type] ?? Ticket;
+              const today = isToday(b);
               return (
-                <div key={b.id} className="li" style={{ gridTemplateColumns: "28px minmax(0,1fr) auto", alignItems: "start" }}>
+                <div key={b.id} className={`li ${today ? "bk-today" : ""}`} style={{ gridTemplateColumns: "28px minmax(0,1fr) auto", alignItems: "start" }}>
                   <Icon className="icon" style={{ marginTop: 2, color: "var(--ink3)" }} />
                   <button style={{ textAlign: "left", minWidth: 0 }} onClick={() => setEditing(b)}>
-                    <div className="li-title">{b.title}</div>
+                    <div className="li-title">{b.title}{today && <span className="today-b">오늘</span>}</div>
                     <div className="li-sub">{b.when ? <span className="num">{b.when}</span> : <span style={{ color: "var(--danger)" }}>일시 미정</span>}</div>
                     {b.memo && <div className="li-sub keep" style={{ color: "var(--ink2)" }}>{b.memo}</div>}
                     {b.code && <div className="li-sub num" style={{ color: "var(--ink)", fontWeight: 600 }}>예약번호 {b.code}</div>}
@@ -57,6 +66,7 @@ export function MoreScreen() {
                     {b.code && <button className="icon-btn" aria-label="예약번호 복사" onClick={() => copy(b.code, "예약번호를 복사했어요")}><Copy className="icon" /></button>}
                     {b.link && <a className="icon-btn" href={b.link} target="_blank" rel="noopener noreferrer" aria-label="예약 링크 열기"><ExternalLink className="icon" /></a>}
                   </div>
+                  {b.files.length > 0 && <div style={{ gridColumn: "2 / -1" }}><TicketStrip booking={b} /><div className="saved-off"><CircleCheck className="icon" />이 폰에 저장돼 오프라인에서도 열려요</div></div>}
                 </div>
               );
             })}
@@ -142,9 +152,16 @@ function BookingSheet({ booking, onClose }: { booking: Booking | null; onClose: 
   const [code, setCode] = useState(booking?.code ?? "");
   const [memo, setMemo] = useState(booking?.memo ?? "");
   const [link, setLink] = useState(booking?.link ?? "");
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [added, setAdded] = useState<File[]>([]);
 
   async function save() {
-    const data = { type, title: title.trim(), when, code: code.trim(), memo, link: link.trim() };
+    const data = {
+      type, title: title.trim(), when, code: code.trim(), memo, link: link.trim(),
+      // tickets carry QR codes and small print: keep them sharper than memo photos
+      ...(added.length ? { "files+": await Promise.all(added.map((f) => shrink(f, 2400, 0.9))) } : {}),
+      ...(removed.size ? { "files-": [...removed] } : {}),
+    };
     if (await attempt(() => (booking ? update("bookings", booking.id, data) : create("bookings", data)), "저장했어요")) onClose();
   }
 
@@ -158,6 +175,11 @@ function BookingSheet({ booking, onClose }: { booking: Booking | null; onClose: 
       <label className="field"><span>일시</span><input id="bk-when" className="input" value={when} onChange={(e) => setWhen(e.target.value)} placeholder="예: 12/6 23:40" /></label>
       <label className="field"><span>예약번호</span><input id="bk-code" className="input num" value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="characters" /></label>
       <label className="field"><span>메모</span><textarea id="bk-memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
+      <div className="field"><span>티켓·확인서</span>
+        <PhotoPicker itemId={booking?.id ?? null} collection="bookings" label="티켓" existing={booking?.files ?? []} removed={removed} added={added}
+          onRemoveExisting={(f) => setRemoved((r) => new Set(r).add(f))} onAdd={(fs) => setAdded((a) => [...a, ...fs])} onRemoveAdded={(i) => setAdded((a) => a.filter((_, k) => k !== i))} />
+        <small className="hint">탑승권·QR·확인서 화면을 캡처해 붙이면 인터넷 없이도 열려요. PDF는 화면 캡처로 붙여 주세요.</small>
+      </div>
       <label className="field"><span>링크</span><input id="bk-link" className="input" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" /></label>
     </Sheet>
   );

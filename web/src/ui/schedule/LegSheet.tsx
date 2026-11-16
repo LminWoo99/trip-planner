@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Bike, Car, Footprints, Navigation, TrainFront } from "lucide-react";
 import type { Item } from "../../domain/types";
 import { estimateLeg, formatMinutes, gmapsRoute } from "../../domain/geo";
+import { formatHm, zonedDate } from "../../domain/clock";
 import { computeLeg, formatMeters, grabUrl, type Mode, type RouteResult } from "../../infra/routes";
 import { hasGoogleKey, loadMaps } from "../../infra/google";
 import { Sheet } from "../Sheet";
@@ -18,19 +19,20 @@ type Located = Item & { lat: number; lng: number };
 type State = { status: "loading" } | { status: "none" } | { status: "error" } | { status: "ok"; route: RouteResult };
 
 /** How to get from one stop to the next: real times per mode from Google, steps, and hand-off to Maps or Grab. */
-export function LegSheet({ from, to, date, onClose }: { from: Located; to: Located; date: string; onClose: () => void }) {
+export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: Located; date: string; tz: string; onClose: () => void }) {
   const guess = estimateLeg(from, to);
   const [mode, setMode] = useState<Mode>(guess.mode === "walk" ? "WALKING" : "DRIVING");
   const [results, setResults] = useState<Partial<Record<Mode, State>>>({});
   const offline = !navigator.onLine || !hasGoogleKey();
-  const departure = from.time ? new Date(`${date}T${from.time}:00`) : undefined;
+  // item times are the destination's wall clock, wherever the phone is set
+  const departure = from.time ? zonedDate(date, from.time, tz) : undefined;
 
   useEffect(() => {
     if (offline) return;
     let alive = true;
     for (const m of MODES) {
       setResults((r) => ({ ...r, [m.mode]: { status: "loading" } }));
-      computeLeg(from, to, m.mode, departure)
+      computeLeg(from, to, m.mode, departure, tz)
         .then((route) => alive && setResults((r) => ({ ...r, [m.mode]: route ? { status: "ok", route } : { status: "none" } })))
         .catch(() => alive && setResults((r) => ({ ...r, [m.mode]: { status: "error" } })));
     }
@@ -48,7 +50,7 @@ export function LegSheet({ from, to, date, onClose }: { from: Located; to: Locat
     window.location.href = grabUrl(to, to.place || to.title);
   }
 
-  const at = (d: Date) => d.toTimeString().slice(0, 5);
+  const at = (d: Date) => formatHm(d, tz);
   const arriveGuess = route && departure && departure.getTime() > 0 ? new Date(departure.getTime() + route.minutes * 60_000) : null;
 
   return (

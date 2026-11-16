@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { AlignLeft, Bus, Car, Check, ChevronRight, Footprints, Plane, Route } from "lucide-react";
-import type { Item } from "../../domain/types";
+import { AlignLeft, Bus, Car, Check, ChevronRight, Footprints, Plane, Route, Ticket } from "lucide-react";
+import type { Booking, Item } from "../../domain/types";
 import { courseKm, estimateLeg, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
 import { CATEGORY_ICON } from "../icons";
 import { PhotoStrip } from "../Photos";
@@ -33,11 +33,14 @@ interface Props {
   onToggle: () => void;
   onRoute?: () => void;
   className?: string;
+  /** linked booking that has ticket images */
+  ticket?: Booking | null;
+  onTicket?: (b: Booking) => void;
 }
 
 const isLongMemo = (m: string) => m.length > 70 || m.split("\n").length > 2;
 
-export function ItemRow({ item, n, onOpen, onToggle, onRoute, className = "" }: Props) {
+export function ItemRow({ item, n, onOpen, onToggle, onRoute, className = "", ticket, onTicket }: Props) {
   const CatIcon = CATEGORY_ICON[item.cat];
   const [memoOpen, setMemoOpen] = useState(false);
   const km = item.stops.length ? courseKm(item.stops) : 0;
@@ -71,6 +74,7 @@ export function ItemRow({ item, n, onOpen, onToggle, onRoute, className = "" }: 
           {item.memo && isLongMemo(item.memo) && (
             <button className="memo-more" onClick={() => setMemoOpen(!memoOpen)} aria-expanded={memoOpen}>{memoOpen ? "접기" : "메모 더보기"}</button>
           )}
+          {ticket && onTicket && <button className="c-ticket" onClick={() => onTicket(ticket)}><Ticket className="icon" />티켓 {ticket.files.length}장</button>}
           <PhotoStrip itemId={item.id} photos={item.photos} />
         </div>
         <button className="check" role="checkbox" aria-checked={item.done} aria-label={`${item.title} 완료`} onClick={onToggle}>

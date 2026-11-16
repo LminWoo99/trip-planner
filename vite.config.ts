@@ -58,6 +58,18 @@ export default defineConfig({
             handler: "CacheFirst",
             options: { cacheName: "photos-full", matchOptions: { ignoreSearch: true }, expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 60 } },
           },
+          // ticket images: kept on the phone for the whole trip, no expiry by age
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/files/bookings/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "tickets",
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 200 },
+              // the file token changes every few minutes; key on path + thumb only
+              plugins: [{ cacheKeyWillBeUsed: async ({ request }) => { const u = new URL(request.url); u.searchParams.delete("token"); return u.href; } }],
+            },
+          },
           {
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/,
             handler: "NetworkFirst",

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpDown, CalendarArrowUp, Check, Copy, Plus, Split, Trash2 } from "lucide-react";
-import type { BranchKey, Group, Item } from "../../domain/types";
+import type { BranchKey, Group, Item, Booking, Day } from "../../domain/types";
 import { buildDay, effectiveBranch, effectiveItems } from "../../domain/timeline";
 import { isSameSpot, type LatLng } from "../../domain/geo";
 import { plannedCost, spentOnDay } from "../../domain/money";
@@ -8,7 +8,12 @@ import { remove, update, useApp } from "../../app/store";
 import { weatherFor } from "../../infra/weather";
 import { attempt } from "../toast";
 import { Sheet } from "../Sheet";
-import { shortDay, todayIso } from "../format";
+import { shortDay } from "../format";
+import { tripToday, useNow } from "../useNow";
+import { nowState, bookingDate } from "../../domain/now";
+import { tzForCity } from "../../infra/weather";
+import { NowCard } from "./NowCard";
+import { TicketViewer } from "../Tickets";
 import { useForecast } from "../useForecast";
 import { DayHead } from "./DayHead";
 
@@ -54,6 +59,9 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const touch = useRef<{ x: number; y: number } | null>(null);
 
   const day = days[Math.min(dayIdx, days.length - 1)];
+  const now = useNow();
+  const today = tripToday(days, now);
+  const [ticketOpen, setTicketOpen] = useState<Booking | null>(null);
   const { spots, forecast } = useForecast(day?.city ?? "");
   useEffect(() => { onSelectionBar(edit && selected.size > 0); }, [edit, selected, onSelectionBar]);
   useEffect(() => () => onSelectionBar(false), [onSelectionBar]);
@@ -82,6 +90,18 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
       ? `플랜 ${firstFork.group.selected}`
       : preview.has(firstFork.group.id) ? `플랜 ${effectiveBranch(firstFork.group, preview)} 미리보기` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`)
     : null;
+  // ---- now (only on today's page during the trip, in the destination's time) ----
+  const isToday = !edit && today.day?.id === day.id;
+  const ns = isToday ? nowState(effective, today.time) : null;
+  const nextFrom = (() => {
+    if (!ns?.next) return null;
+    const i = effective.findIndex((x) => x.id === ns.next!.id);
+    for (let k = i - 1; k >= 0; k--) if (located(effective[k])) return effective[k] as Item & { lat: number; lng: number };
+    return null;
+  })();
+  const withTickets = (id: string | null) => snapshot.bookings.find((b) => b.id === id && b.files.length > 0) ?? null;
+  const nowTicket = ns ? withTickets(ns.next?.booking ?? null)
+    ?? snapshot.bookings.find((b) => b.files.length > 0 && bookingDate(b, snapshot.trip.start) === day.date) ?? null : null;
   const mapNote = basisLabel ? `${basisLabel} 동선`
     : `${day.n}일차 동선`;
 
@@ -107,15 +127,19 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   let n = 1;
   let prev: LatLng | null = null;
   let prevItem: Item | null = null;
-  const pushItem = (it: Item, className = "") => {
+  let lineShown = false;
+  const pushNowLine = () => { lineShown = true; rows.push(<NowLine key="now-line" time={today.time} />); };
+  const pushItem = (it: Item, extra = "") => {
     const loc = located(it);
+    if (ns && !lineShown && ns.next?.id === it.id) pushNowLine();
+    const className = [extra, ns?.past.has(it.id) ? "past" : "", ns?.next?.id === it.id ? "next" : ""].filter(Boolean).join(" ");
     if (prev && loc && prevItem && !isSameSpot(prev, loc)) {
       const pair = { from: prevItem.id, to: it.id };
       rows.push(<GapRow key={`gap-${it.id}`} from={prev} to={loc} onOpen={() => setLeg(pair)} />);
     }
     if (loc) { prev = loc; prevItem = it; }
     const num = it.place ? n++ : null;
-    rows.push(<ItemRow key={it.id} item={it} n={num} className={className} onOpen={() => setItemSheet({ item: it, target: { day: day.id, group: it.group, branch: it.branch } })} onToggle={() => toggleDone(it)} onRoute={() => setRouteId(it.id)} />);
+    rows.push(<ItemRow key={it.id} item={it} n={num} className={className} ticket={withTickets(it.booking)} onTicket={setTicketOpen} onOpen={() => setItemSheet({ item: it, target: { day: day.id, group: it.group, branch: it.branch } })} onToggle={() => toggleDone(it)} onRoute={() => setRouteId(it.id)} />);
   };
   for (const e of entries) {
     if (e.kind === "item") { pushItem(e.item); continue; }
@@ -154,11 +178,13 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
     }
   }
 
+  if (ns && !ns.next && !lineShown && rows.length) pushNowLine();
+
   return (
     <>
       <div className="days" role="toolbar" aria-label="날짜">
         {days.map((d, i) => (
-          <button key={d.id} className="pill" aria-pressed={i === dayIdx} onClick={() => goDay(i)} aria-label={`${d.n}일차 ${shortDay(d.date)}`}>Day {d.n}</button>
+          <button key={d.id} className="pill" aria-pressed={i === dayIdx} onClick={() => goDay(i)} aria-label={`${d.n}일차 ${shortDay(d.date)}${today.day?.id === d.id ? " 오늘" : ""}`}>{today.day?.id === d.id && <span className="today-dot" />}Day {d.n}</button>
         ))}
         <button className={`pill ${edit ? "outline" : ""}`} onClick={() => { setEdit(!edit); setSelected(new Set()); }}>
           {edit ? <><Check className="icon" />완료</> : <><ArrowUpDown className="icon" />편집</>}
@@ -177,6 +203,11 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
           if (Math.abs(dx) > 70 && Math.abs(dy) < 40) goDay(dayIdx + (dx < 0 ? 1 : -1));
         }}
       >
+        {isToday && (
+          <NowCard dayN={day.n} dateLabel={shortDay(day.date)} time={today.time} next={ns?.next ?? null} from={nextFrom}
+            ticket={nowTicket} onTicket={() => nowTicket && setTicketOpen(nowTicket)}
+            onLeg={nextFrom && ns?.next && located(ns.next) ? () => setLeg({ from: nextFrom.id, to: ns.next!.id }) : null} />
+        )}
         <div className="day-top">
           {!edit && <DayHead day={day} spots={spots} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={basisLabel} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
@@ -220,7 +251,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
           const a = snapshot.items.find((x) => x.id === leg.from);
           const b = snapshot.items.find((x) => x.id === leg.to);
           if (!a || !b || a.lat === null || a.lng === null || b.lat === null || b.lng === null) return null;
-          return <LegSheet from={{ ...a, lat: a.lat, lng: a.lng }} to={{ ...b, lat: b.lat, lng: b.lng }} date={day.date} onClose={() => setLeg(null)} />;
+          return <LegSheet from={{ ...a, lat: a.lat, lng: a.lng }} to={{ ...b, lat: b.lat, lng: b.lng }} date={day.date} tz={tzForCity(day.city)} onClose={() => setLeg(null)} />;
         })()}
         {detailId && !itemSheet && !routeId && (() => {
           const it = snapshot.items.find((x) => x.id === detailId);
@@ -233,6 +264,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
           return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;
         })()}
       </Suspense>
+      {ticketOpen && <TicketViewer booking={ticketOpen} onClose={() => setTicketOpen(null)} />}
       {(bulk === "move" || bulk === "copy") && (
         <Suspense fallback={null}><MoveCopySheet mode={bulk} ids={selected} currentDay={day.id} onClose={() => setBulk(null)} onDone={() => { setBulk(null); setSelected(new Set()); }} /></Suspense>
       )}
@@ -256,8 +288,13 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   );
 }
 
-function initialDay(days: readonly { date: string }[]): number {
-  const today = days.findIndex((d) => d.date === todayIso());
+function NowLine({ time }: { time: string }) {
+  return <div className="now-line" aria-label={`현지 시각 ${time}`}><span className="num">{time}</span><i /></div>;
+}
+
+function initialDay(days: readonly Day[]): number {
+  const t = tripToday(days, new Date()).day;
+  const today = t ? days.indexOf(t) : -1;
   if (today >= 0) return today;
   try {
     const saved = Number(sessionStorage.getItem(DAY_KEY));
