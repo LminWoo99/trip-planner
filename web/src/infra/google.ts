@@ -11,7 +11,7 @@ export const hasGoogleKey = () => Boolean(KEY);
 function configure() {
   if (configured) return;
   if (!KEY) throw new Error("NO_GOOGLE_KEY");
-  setOptions({ key: KEY, v: "weekly", language: "ko", region: "VN" });
+  setOptions({ key: KEY, v: "weekly", language: "ko" });
   configured = true;
 }
 
@@ -70,7 +70,6 @@ export class PlaceSearchSession {
       input,
       sessionToken: this.token,
       locationBias: biasFor(city),
-      includedRegionCodes: ["vn"],
       language: "ko",
     });
     return suggestions.flatMap((s) => {
@@ -96,7 +95,6 @@ export async function findPlace(query: string, city: string): Promise<FoundPlace
     fields: ["displayName", "formattedAddress", "location", "googleMapsURI", "primaryType"],
     locationBias: biasFor(city),
     language: "ko",
-    region: "vn",
     maxResultCount: 1,
   });
   return hits[0] ? toFound(hits[0]) : null;

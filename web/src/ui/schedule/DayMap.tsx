@@ -108,3 +108,4 @@ function fitAll(m: google.maps.Map, pts: google.maps.LatLngLiteral[]) {
   m.fitBounds(b, { top: 36, bottom: 48, left: 36, right: 36 });
   google.maps.event.addListenerOnce(m, "idle", () => { if ((m.getZoom() ?? 0) > 16) m.setZoom(16); });
 }
+

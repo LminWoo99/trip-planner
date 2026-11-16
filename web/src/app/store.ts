@@ -1,11 +1,15 @@
 import { useSyncExternalStore } from "react";
 import type { RecordModel } from "pocketbase";
 import type { TripSnapshot } from "../domain/types";
-import { COLLECTIONS, loadSnapshot, mappers, pb, subscribeTrip, type TripCollection } from "../infra/pocketbase";
+import type { TripSummary } from "../domain/trips";
+import { changeTripDates, COLLECTIONS, createTrip, deleteTrip, listTrips, loadSnapshot, mappers, pb, subscribeTrip, type TripCollection } from "../infra/pocketbase";
 
-// App state: the trip snapshot plus sync status. Last good snapshot is cached for offline reading.
+// App state: the trip list, the open trip's snapshot, and sync status.
+// Each trip's last good snapshot (and the list) is cached so they can be read offline.
 
 export interface AppState {
+  readonly trips: readonly TripSummary[] | null;
+  readonly tripId: string | null;
   readonly snapshot: TripSnapshot | null;
   readonly meId: string | null;
   readonly syncedAt: number | null;
@@ -13,8 +17,11 @@ export interface AppState {
   readonly error: string | null;
 }
 
-const CACHE_KEY = "trip-cache-v1";
-let state: AppState = { snapshot: null, meId: null, syncedAt: null, online: navigator.onLine, error: null };
+const TRIPS_KEY = "trips-cache-v1";
+const CURRENT_KEY = "trip-current";
+const cacheKey = (id: string) => `trip-cache-v2:${id}`;
+
+let state: AppState = { trips: null, tripId: null, snapshot: null, meId: null, syncedAt: null, online: navigator.onLine, error: null };
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<AppState>) {
@@ -22,20 +29,15 @@ function set(patch: Partial<AppState>) {
   listeners.forEach((l) => l());
 }
 
-function persist() {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ snapshot: state.snapshot, meId: state.meId, syncedAt: state.syncedAt }));
-  } catch { /* storage full or blocked: offline copy just won't update */ }
-}
+const read = <T,>(key: string): T | null => {
+  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : null; } catch { return null; }
+};
+const write = (key: string, value: unknown) => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked: offline copy just won't update */ }
+};
 
-function restore() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const { snapshot, meId, syncedAt } = JSON.parse(raw);
-      set({ snapshot, meId, syncedAt });
-    }
-  } catch { /* ignore broken cache */ }
+function persist() {
+  if (state.tripId) write(cacheKey(state.tripId), { snapshot: state.snapshot, meId: state.meId, syncedAt: state.syncedAt });
 }
 
 export function useApp(): AppState {
@@ -44,14 +46,32 @@ export function useApp(): AppState {
 
 export const getState = () => state;
 
-async function refresh() {
+const failedStatus = (e: unknown) => (e as { status?: number }).status;
+
+async function refreshTrips() {
   try {
-    const { snapshot, meId } = await loadSnapshot();
+    const trips = await listTrips();
+    set({ trips, online: true });
+    write(TRIPS_KEY, trips);
+  } catch (e) {
+    const status = failedStatus(e);
+    if (status === 401 || status === 403) { signOut(); return; }
+    set({ online: navigator.onLine && status !== 0 });
+  }
+}
+
+async function refresh() {
+  const tripId = state.tripId;
+  if (!tripId) { await refreshTrips(); return; }
+  try {
+    const { snapshot, meId } = await loadSnapshot(tripId);
+    if (state.tripId !== tripId) return; // switched away meanwhile
     set({ snapshot, meId, syncedAt: Date.now(), online: true, error: null });
     persist();
   } catch (e) {
-    const status = (e as { status?: number }).status;
+    const status = failedStatus(e);
     if (status === 401 || status === 403) { signOut(); return; }
+    if (status === 404) { closeTrip(); void refreshTrips(); return; } // deleted on the other phone
     set({ online: navigator.onLine && status !== 0, error: state.snapshot ? null : "일정을 불러오지 못했어요. 네트워크를 확인해 주세요." });
   }
 }
@@ -72,24 +92,49 @@ function applyEvent(collection: TripCollection, action: string, record: RecordMo
 
 let stopRealtime: (() => void) | null = null;
 
-export async function start() {
-  restore();
-  if (!pb.authStore.isValid) return;
+/** Opens a trip: cached copy first (works offline), then the live data and realtime updates. */
+export async function openTrip(tripId: string) {
+  stopRealtime?.();
+  stopRealtime = null;
+  const cached = read<{ snapshot: TripSnapshot; meId: string | null; syncedAt: number | null }>(cacheKey(tripId));
+  set({ tripId, snapshot: cached?.snapshot ?? null, meId: cached?.meId ?? null, syncedAt: cached?.syncedAt ?? null, error: null });
+  write(CURRENT_KEY, tripId);
   await refresh();
-  const tripId = state.snapshot?.trip.id;
-  if (tripId && !stopRealtime) {
-    try {
-      stopRealtime = await subscribeTrip(tripId, applyEvent, refresh);
-    } catch { /* realtime unavailable: pull on focus still works */ }
-  }
+  if (state.tripId !== tripId) return;
+  try {
+    const stop = await subscribeTrip(tripId, applyEvent, refresh);
+    if (state.tripId === tripId) stopRealtime = stop; else stop();
+  } catch { /* realtime unavailable: pull on focus still works */ }
+}
+
+/** Back to the list. The trip stays remembered, so the next launch opens it again. */
+export function closeTrip() {
+  stopRealtime?.();
+  stopRealtime = null;
+  set({ tripId: null, snapshot: null, meId: null, syncedAt: null, error: null });
+  void refreshTrips();
+}
+
+export async function start() {
+  set({ trips: read<TripSummary[]>(TRIPS_KEY) });
+  if (!pb.authStore.isValid) return;
+  // phones that used the single-trip version keep landing in that trip
+  const legacy = read<{ snapshot?: TripSnapshot }>("trip-cache-v1")?.snapshot?.trip.id ?? null;
+  const last = read<string>(CURRENT_KEY) ?? legacy;
+  if (last) void openTrip(last);
+  await refreshTrips();
+  // the remembered trip may have been deleted on the other phone
+  if (last && state.trips && !state.trips.some((t) => t.id === last) && state.tripId === last) closeTrip();
 }
 
 export function signOut() {
   stopRealtime?.();
   stopRealtime = null;
   pb.authStore.clear();
-  try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
-  set({ snapshot: null, meId: null, syncedAt: null, error: null });
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("trip-cache") || k === TRIPS_KEY || k === CURRENT_KEY) localStorage.removeItem(k);
+  } catch { /* ignore */ }
+  set({ trips: null, tripId: null, snapshot: null, meId: null, syncedAt: null, error: null });
 }
 
 window.addEventListener("online", () => { set({ online: true }); void refresh(); });
@@ -97,6 +142,30 @@ window.addEventListener("offline", () => set({ online: false }));
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && pb.authStore.isValid) void refresh();
 });
+
+// ---- trips ----
+
+export async function newTrip(title: string, startDate: string, endDate: string) {
+  if (!navigator.onLine) throw new OfflineError();
+  const id = await createTrip(title, startDate, endDate);
+  await refreshTrips();
+  await openTrip(id);
+}
+
+export async function setTripDates(startDate: string, endDate: string) {
+  guard();
+  await changeTripDates(state.tripId!, startDate, endDate);
+  await refresh();
+  void refreshTrips();
+}
+
+export async function removeTrip() {
+  guard();
+  const id = state.tripId!;
+  await deleteTrip(id);
+  try { localStorage.removeItem(cacheKey(id)); localStorage.removeItem(CURRENT_KEY); } catch { /* ignore */ }
+  closeTrip();
+}
 
 // ---- writes: every change goes to the server; realtime brings it back to both phones ----
 
@@ -146,6 +215,7 @@ export async function updateTrip(data: Record<string, unknown>) {
   guard();
   await pb.collection("trips").update(state.snapshot!.trip.id, data);
   await refresh();
+  void refreshTrips();
 }
 
 export { COLLECTIONS };

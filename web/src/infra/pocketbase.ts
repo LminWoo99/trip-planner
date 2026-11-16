@@ -1,4 +1,5 @@
 import PocketBase, { type RecordModel } from "pocketbase";
+import { citiesOf, type TripSummary } from "../domain/trips";
 import type {
   Booking, BranchKey, ChecklistItem, Currency, Day, Expense, Group, Item, Member, Note, Place, Trip, TripSnapshot,
 } from "../domain/types";
@@ -49,10 +50,8 @@ export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[
 };
 
 /** Loads one trip with one request per collection (no per-day queries). */
-export async function loadSnapshot(): Promise<{ snapshot: TripSnapshot; meId: string | null }> {
-  const trips = await pb.collection("trips").getList(1, 1, { sort: "-start" });
-  const tripRec = trips.items[0];
-  if (!tripRec) throw new Error("NO_TRIP");
+export async function loadSnapshot(tripId: string): Promise<{ snapshot: TripSnapshot; meId: string | null }> {
+  const tripRec = await pb.collection("trips").getOne(tripId);
   const filter = pb.filter("trip = {:t}", { t: tripRec.id });
 
   const [memberRecs, ...lists] = await Promise.all([
@@ -91,4 +90,35 @@ export async function enterWithCode(code: string, who: string): Promise<void> {
 
 export async function checkCode(code: string): Promise<void> {
   await pb.send("/api/gate/check", { method: "POST", body: { code } });
+}
+
+// ---- trip list ----
+
+/** Every trip the signed-in person belongs to, plus each trip's cities: two requests in total. */
+export async function listTrips(): Promise<TripSummary[]> {
+  const [trips, days] = await Promise.all([
+    pb.collection("trips").getFullList({ sort: "-start" }),
+    pb.collection("days").getFullList({ fields: "trip,date,city,title", sort: "n" }),
+  ]);
+  return trips.map((t) => {
+    const own = days.filter((d) => d.trip === t.id);
+    return {
+      id: t.id, title: t.title, start: date(t.start), end: date(t.end),
+      cities: citiesOf(own.map((d) => d.city).filter(Boolean)),
+      dayTitles: Object.fromEntries(own.map((d) => [date(d.date), d.title])),
+    };
+  });
+}
+
+export async function createTrip(title: string, start: string, end: string): Promise<string> {
+  const res = await pb.send("/api/trips", { method: "POST", body: { title, start, end } });
+  return res.id;
+}
+
+export async function changeTripDates(tripId: string, start: string, end: string): Promise<void> {
+  await pb.send(`/api/trips/${tripId}/dates`, { method: "POST", body: { start, end } });
+}
+
+export async function deleteTrip(tripId: string): Promise<void> {
+  await pb.send(`/api/trips/${tripId}`, { method: "DELETE" });
 }

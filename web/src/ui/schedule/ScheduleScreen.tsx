@@ -18,6 +18,11 @@ import type { ItemDraftTarget } from "./ItemSheet";
 
 // map (Leaflet), drag (dnd-kit) and forms load when first needed
 const DayMap = lazy(() => import("./DayMap").then((m) => ({ default: m.DayMap })));
+const NoMap = ({ unlocated }: { unlocated: number }) => (
+  <div className="map-none">
+    {unlocated > 0 ? `장소 ${unlocated}곳의 위치를 찾으면 동선이 지도에 나와요` : "장소가 있는 일정을 추가하면 동선이 지도에 나와요"}
+  </div>
+);
 const EditList = lazy(() => import("./EditList").then((m) => ({ default: m.EditList })));
 const ItemSheet = lazy(() => import("./ItemSheet").then((m) => ({ default: m.ItemSheet })));
 const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.GroupSheet })));
@@ -169,7 +174,9 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         <div className="day-top">
           {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={basisLabel} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
-          <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
+          {effective.some((i) => i.lat !== null && i.lng !== null)
+            ? <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
+            : <NoMap unlocated={effective.filter((i) => i.place).length} />}
         </div>
         {edit ? (
           <Suspense fallback={null}><EditList
