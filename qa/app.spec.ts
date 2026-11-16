@@ -339,6 +339,34 @@ test.describe("여행 목록", () => {
     await expect(page.getByRole("button", { name: /QA 도쿄 여행/ })).toHaveCount(0);
   });
 
+  test("사파·하노이가 아닌 도시도 날짜의 도시를 적으면 그 도시 날씨가 나온다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "creates and deletes a trip; once is enough");
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const start = new Date(Date.now() + 2 * 86_400_000);
+    const end = new Date(Date.now() + 3 * 86_400_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "여행 목록" }).click();
+    await page.getByRole("button", { name: "새 여행" }).click();
+    await page.locator("#trip-title").fill("QA 날씨 여행");
+    await page.locator("#trip-start").fill(iso(start));
+    await page.locator("#trip-end").fill(iso(end));
+    await page.getByRole("button", { name: "만들기" }).click();
+    await expect(page.getByRole("heading", { name: "QA 날씨 여행" })).toBeVisible();
+    await page.getByRole("button", { name: "하루 정보 고치기" }).click();
+    await page.locator("#day-city").fill("도쿄");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.locator(".wx-place").first()).toContainText("도쿄", { timeout: 20000 });
+    await expect(page.locator(".wx-temp").first()).toContainText("°");
+    await shot(page, "93-other-city-weather");
+    // clean up
+    await page.getByRole("button", { name: "더보기" }).click();
+    await page.getByRole("button", { name: /여행 설정/ }).click();
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.locator("#trip-delete-confirm").fill("QA 날씨 여행");
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
+  });
+
   test("일정이 있는 날을 빼는 날짜 변경은 막고 안내한다", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "더보기" }).click();
@@ -408,6 +436,25 @@ test.describe("Google 지도·장소", () => {
     await page.getByRole("button", { name: "삭제" }).click();
     await page.getByRole("button", { name: "삭제하기" }).click();
     await expect(page.locator(".card", { hasText: "QA 트레킹 코스" })).toHaveCount(0);
+  });
+
+  test("이동 구간을 누르면 Google 경로로 수단별 시간과 단계별 안내가 나온다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "uses Google Routes quota; once is enough");
+    await page.goto("/");
+    await openDay(page, 5);
+    await page.getByRole("button", { name: /이동 방법 보기/ }).first().click();
+    const sheet = page.getByRole("dialog", { name: "이동 방법" });
+    await expect(sheet).toBeVisible();
+    const drive = sheet.getByRole("tab", { name: /차·그랩/ });
+    await expect(drive).toContainText(/\d+분|\d+시간/, { timeout: 20000 });
+    await drive.click();
+    await expect(sheet.locator(".leg-step").first()).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "구글맵에서 길찾기" })).toHaveAttribute("href", /travelmode=driving/);
+    await page.waitForTimeout(1500);
+    await shot(page, "86-leg-drive");
+    await sheet.getByRole("tab", { name: /대중교통/ }).click();
+    await expect(sheet.locator(".leg-step, .note-box").first()).toBeVisible({ timeout: 20000 });
+    await shot(page, "87-leg-transit");
   });
 
   test("위치 없는 장소 채우기가 Google에서 후보를 찾아 보여준다", async ({ page }) => {

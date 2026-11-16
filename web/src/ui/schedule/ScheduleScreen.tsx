@@ -29,6 +29,7 @@ const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.G
 const RouteSheet = lazy(() => import("./RouteSheet").then((m) => ({ default: m.RouteSheet })));
 const MoveCopySheet = lazy(() => import("./MoveCopySheet").then((m) => ({ default: m.MoveCopySheet })));
 const ItemDetailSheet = lazy(() => import("./ItemDetailSheet").then((m) => ({ default: m.ItemDetailSheet })));
+const LegSheet = lazy(() => import("./LegSheet").then((m) => ({ default: m.LegSheet })));
 const DaySheet = lazy(() => import("./DaySheet").then((m) => ({ default: m.DaySheet })));
 
 const located = (i: Item): LatLng | null => (i.lat !== null && i.lng !== null ? { lat: i.lat, lng: i.lng } : null);
@@ -36,7 +37,6 @@ const DAY_KEY = "schedule-day";
 
 export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boolean) => void }) {
   const { snapshot, meId } = useApp();
-  const forecast = useForecast();
   const days = useMemo(() => [...(snapshot?.days ?? [])].sort((a, b) => a.n - b.n), [snapshot?.days]);
   const [dayIdx, setDayIdx] = useState(() => initialDay(days));
   const [edit, setEdit] = useState(false);
@@ -48,11 +48,13 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [editingDay, setEditingDay] = useState(false);
   const [preview, setPreview] = useState<Map<string, BranchKey>>(new Map());
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [leg, setLeg] = useState<{ from: string; to: string } | null>(null);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
 
   const day = days[Math.min(dayIdx, days.length - 1)];
+  const { spots, forecast } = useForecast(day?.city ?? "");
   useEffect(() => { onSelectionBar(edit && selected.size > 0); }, [edit, selected, onSelectionBar]);
   useEffect(() => () => onSelectionBar(false), [onSelectionBar]);
 
@@ -104,10 +106,14 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const rows: React.ReactNode[] = [];
   let n = 1;
   let prev: LatLng | null = null;
+  let prevItem: Item | null = null;
   const pushItem = (it: Item, className = "") => {
     const loc = located(it);
-    if (prev && loc && !isSameSpot(prev, loc)) rows.push(<GapRow key={`gap-${it.id}`} from={prev} to={loc} />);
-    if (loc) prev = loc;
+    if (prev && loc && prevItem && !isSameSpot(prev, loc)) {
+      const pair = { from: prevItem.id, to: it.id };
+      rows.push(<GapRow key={`gap-${it.id}`} from={prev} to={loc} onOpen={() => setLeg(pair)} />);
+    }
+    if (loc) { prev = loc; prevItem = it; }
     const num = it.place ? n++ : null;
     rows.push(<ItemRow key={it.id} item={it} n={num} className={className} onOpen={() => setItemSheet({ item: it, target: { day: day.id, group: it.group, branch: it.branch } })} onToggle={() => toggleDone(it)} onRoute={() => setRouteId(it.id)} />);
   };
@@ -139,7 +145,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         </div>,
       );
       // numbering and distances after the fork follow plan A, same as the map
-      for (const it of basis) { if (it.place) n++; const loc = located(it); if (loc) prev = loc; }
+      for (const it of basis) { if (it.place) n++; const loc = located(it); if (loc) { prev = loc; prevItem = it; } }
     } else {
       const just = justPicked === g.id;
       rows.push(<ChosenHeader key={g.id} entry={e} members={members} just={just} onReset={() => resetPick(g)} />);
@@ -172,7 +178,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         }}
       >
         <div className="day-top">
-          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={basisLabel} />}
+          {!edit && <DayHead day={day} spots={spots} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={basisLabel} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
           {effective.some((i) => i.lat !== null && i.lng !== null)
             ? <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
@@ -210,6 +216,12 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         {itemSheet && <ItemSheet item={itemSheet.item} target={itemSheet.target} onClose={() => setItemSheet(null)} />}
         {groupSheet && <GroupSheet group={groupSheet.group} day={day.id} onClose={() => setGroupSheet(null)} />}
         {editingDay && <DaySheet day={day} onClose={() => setEditingDay(false)} />}
+        {leg && (() => {
+          const a = snapshot.items.find((x) => x.id === leg.from);
+          const b = snapshot.items.find((x) => x.id === leg.to);
+          if (!a || !b || a.lat === null || a.lng === null || b.lat === null || b.lng === null) return null;
+          return <LegSheet from={{ ...a, lat: a.lat, lng: a.lng }} to={{ ...b, lat: b.lat, lng: b.lng }} date={day.date} onClose={() => setLeg(null)} />;
+        })()}
         {detailId && !itemSheet && !routeId && (() => {
           const it = snapshot.items.find((x) => x.id === detailId);
           return it ? <ItemDetailSheet item={it} onClose={() => setDetailId(null)}

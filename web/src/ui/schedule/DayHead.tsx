@@ -2,14 +2,13 @@ import { useState } from "react";
 import { BedDouble, Pencil, Wallet } from "lucide-react";
 import { formatApproxKrw, formatKrw, type PlannedCost } from "../../domain/money";
 import type { Day } from "../../domain/types";
-import { describe, spotsForCity, weatherFor, type Forecast } from "../../infra/weather";
+import { describe, weatherFor, type Forecast, type Spot } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { dayLabel, parseDay, stamp } from "../format";
 
-export function DayHead({ day, forecast, planned, spent, basis, onEdit }: { day: Day; forecast: Forecast | null; planned: PlannedCost; spent: number; basis: string | null; onEdit: () => void }) {
+export function DayHead({ day, spots, forecast, planned, spent, basis, onEdit }: { day: Day; spots: readonly Spot[]; forecast: Forecast | null; planned: PlannedCost; spent: number; basis: string | null; onEdit: () => void }) {
   const [memoOpen, setMemoOpen] = useState(false);
   const longMemo = day.memo.length > 120 || day.memo.split("\n").length > 3;
-  const spots = spotsForCity(day.city);
   const cells = spots.map((s) => ({ spot: s, w: weatherFor(forecast, s.id, day.date) }));
   const hasAny = cells.some((c) => c.w);
 
@@ -37,7 +36,7 @@ export function DayHead({ day, forecast, planned, spent, basis, onEdit }: { day:
               const Icon = w ? WEATHER_ICON[describe(w.code).icon] : null;
               return (
                 <div className="wx-cell" key={spot.id}>
-                  <span className="wx-place">{spot.name} <i>{spot.elevation.toLocaleString()}m</i></span>
+                  <span className="wx-place">{spot.name}{spot.elevation > 300 && <i> {spot.elevation.toLocaleString()}m</i>}</span>
                   {w ? (
                     <>
                       <span className="wx-temp">{Icon && <Icon className="icon" />}{w.tMax}°<small>/ {w.tMin}°</small></span>
