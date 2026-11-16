@@ -13,9 +13,14 @@ export default async function globalSetup() {
     });
     if (!res.ok) throw new Error(`gate failed for ${who}: ${res.status}`);
     const { token, record } = await res.json();
+    // open straight into the seeded trip (the app remembers the last trip)
+    const trips = await (await fetch(`${base}/api/collections/trips/records`, { headers: { Authorization: token } })).json();
     const state = {
       cookies: [],
-      origins: [{ origin: base, localStorage: [{ name: "pocketbase_auth", value: JSON.stringify({ token, record }) }] }],
+      origins: [{ origin: base, localStorage: [
+        { name: "pocketbase_auth", value: JSON.stringify({ token, record }) },
+        { name: "trip-current", value: JSON.stringify(trips.items[0].id) },
+      ] }],
     };
     await writeFile(`qa/.auth/${file}.json`, JSON.stringify(state));
   }

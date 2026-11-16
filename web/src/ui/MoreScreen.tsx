@@ -5,6 +5,7 @@ import { create, remove, signOut, update, updateTrip, useApp } from "../app/stor
 import { attempt, toast } from "./toast";
 import { Sheet } from "./Sheet";
 import { FillLocationsSheet } from "./FillLocationsSheet";
+import { TripSettingsSheet } from "./TripSettingsSheet";
 
 const BOOKING_ICON = { flight: Plane, stay: BedDouble, move: Bus, tour: MapIcon, etc: Ticket } as const;
 const BOOKING_LABEL = { flight: "항공", stay: "숙소", move: "버스·이동", tour: "투어", etc: "기타" } as const;
@@ -29,6 +30,7 @@ export function MoreScreen() {
   const [editing, setEditing] = useState<Booking | "new" | null>(null);
   const [settings, setSettings] = useState(false);
   const [fill, setFill] = useState(false);
+  const [tripSettings, setTripSettings] = useState(false);
   if (!snapshot) return null;
 
   return (
@@ -80,6 +82,7 @@ export function MoreScreen() {
 
         <div className="section">
           <div className="list">
+            <button className="li" onClick={() => setTripSettings(true)}><div className="li-title">여행 설정</div><div className="li-sub" style={{ paddingRight: 8 }}>이름·날짜·삭제</div></button>
             <button className="li" onClick={() => setSettings(true)}><div className="li-title">환율·예산 설정</div><div className="li-sub num" style={{ paddingRight: 8 }}>1₫={snapshot.trip.vndKrw}원, $1={snapshot.trip.usdKrw.toLocaleString()}원</div></button>
             <button className="li" onClick={() => setFill(true)}>
               <div className="li-title">위치 없는 장소 채우기</div>
@@ -93,6 +96,7 @@ export function MoreScreen() {
       {editing && <BookingSheet booking={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {settings && <SettingsSheet onClose={() => setSettings(false)} />}
       {fill && <FillLocationsSheet onClose={() => setFill(false)} />}
+      {tripSettings && <TripSettingsSheet onClose={() => setTripSettings(false)} />}
     </>
   );
 }

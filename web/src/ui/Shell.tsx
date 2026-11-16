@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
-import { CalendarDays, Ellipsis, ListChecks, MapPinned, Wallet } from "lucide-react";
-import { useApp } from "../app/store";
+import { CalendarDays, ChevronLeft, Ellipsis, ListChecks, MapPinned, Wallet } from "lucide-react";
+import { closeTrip, useApp } from "../app/store";
 import { stamp } from "./format";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
 // other tabs load on first visit so the schedule opens fast on a slow connection
@@ -34,6 +34,7 @@ export function Shell() {
   return (
     <div className="app">
       <header className="topbar">
+        <button className="back-btn" onClick={closeTrip} aria-label="여행 목록"><ChevronLeft className="icon" /></button>
         <h1>{app.snapshot.trip.title}</h1>
         <span className="sync" aria-live="polite">
           <span className={`dot ${app.online ? "" : "off"}`} />
