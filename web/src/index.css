@@ -94,6 +94,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .map-route { position: absolute; right: 8px; bottom: 8px; height: 30px; border: 1px solid var(--line); background: #fff; border-radius: 8px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; padding: 0 9px; color: var(--ink); text-decoration: none; z-index: 500; }
 .map-route .icon { width: 14px; height: 14px; }
 .map.big { height: 55dvh; }
+.map-none { margin: 0 16px; padding: 14px 12px; border-radius: 12px; border: 1px dashed var(--box); font-size: 13px; color: var(--ink3); text-align: center; word-break: keep-all; }
 .map-expand { position: absolute; right: 8px; top: 8px; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; color: var(--ink); z-index: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .map-expand .icon { width: 16px; height: 16px; }
 .map-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: var(--ink3); }
@@ -368,6 +369,33 @@ textarea.input { height: auto; min-height: 84px; padding: 10px 12px; line-height
 .update-banner { position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.2); white-space: nowrap; }
 .update-banner button { height: 36px; padding: 0 12px; border-radius: 8px; background: #fff; color: var(--ink); font-weight: 700; display: flex; align-items: center; gap: 4px; }
 .update-banner .icon { width: 15px; height: 15px; }
+
+/* ---------- trip list ---------- */
+.back-btn { width: 40px; height: 44px; margin-left: -12px; display: grid; place-items: center; color: var(--ink); flex: none; }
+.back-btn .icon { width: 24px; height: 24px; }
+.topbar h1 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trips-top { flex: none; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; display: flex; align-items: flex-end; justify-content: space-between; }
+.trips-top h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.trips-who { font-size: 13px; color: var(--ink3); }
+.trips-list { padding: 14px 16px calc(150px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; }
+.trips-list .group-label { margin: 10px 2px 0; }
+.trips-list .group-label:first-child { margin-top: 0; }
+.trip-card { background: var(--bg); border-radius: 14px; box-shadow: 0 1px 2px rgba(22,25,29,.05); display: grid; grid-template-columns: 56px minmax(0, 1fr) 20px; gap: 14px; align-items: center; padding: 14px 12px 14px 14px; text-align: left; width: 100%; }
+.dday { width: 56px; height: 56px; border-radius: 12px; background: var(--ink); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
+.dday b { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+.dday small { font-size: 10px; font-weight: 600; opacity: .75; margin-top: 3px; }
+.dday.live { background: var(--bg); color: var(--ink); border: 1.5px solid var(--ink); }
+.dday.live small { display: flex; align-items: center; gap: 3px; opacity: 1; color: var(--live); }
+.dday.live small::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--live); }
+.dday.past { background: var(--ground); color: var(--ink3); }
+.trip-title { display: block; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trip-meta { display: block; margin-top: 3px; font-size: 13px; color: var(--ink2); }
+.trip-meta span + span::before { content: ""; display: inline-block; width: 3px; height: 3px; border-radius: 50%; background: var(--box); margin: 0 7px 3px; }
+.trip-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trip-card.past .trip-title { color: var(--ink2); }
+.fab-wide { width: auto; padding: 0 18px 0 14px; gap: 6px; display: flex; align-items: center; font-weight: 700; font-size: 15px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.note-box { margin: 0; font-size: 13px; color: var(--ink2); background: var(--ground); border-radius: 10px; padding: 10px 12px; line-height: 1.5; word-break: keep-all; }
+.note-box b { color: var(--ink); }
 
 /* ---------- gate ---------- */
 .gate { position: fixed; inset: 0; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(32px + env(safe-area-inset-bottom, 0px)); background: var(--bg); }

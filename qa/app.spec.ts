@@ -23,6 +23,9 @@ test.describe("진입", () => {
     await expect(page.getByRole("heading", { name: "누구세요?" })).toBeVisible();
     await shot(page, "02-who");
     await page.getByRole("button", { name: /^민우/ }).click();
+    // first entry lands on the trip list
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
+    await page.getByRole("button", { name: /사파 여행/ }).click();
     await expect(page.getByRole("button", { name: /^1일차/ })).toBeVisible();
   });
 });
@@ -296,6 +299,53 @@ test.describe("일정", () => {
     await page.locator(".screen").dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: box.x + 300, clientY: y }] });
     await page.locator(".screen").dispatchEvent("touchend", { changedTouches: [{ identifier: 1, clientX: box.x + 80, clientY: y }] });
     await expect(page.getByRole("button", { name: /^3일차/ })).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+test.describe("여행 목록", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+
+  test("‹로 목록에 가서 새 여행을 만들면 날짜만큼 일차가 생기고, 설정에서 지울 수 있다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "creates and deletes a trip; once is enough");
+    await page.goto("/");
+    await page.getByRole("button", { name: "여행 목록" }).click();
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /사파 여행/ })).toBeVisible();
+    await shot(page, "90-trip-list");
+
+    await page.getByRole("button", { name: "새 여행" }).click();
+    await page.locator("#trip-title").fill("QA 도쿄 여행");
+    await page.locator("#trip-start").fill("2027-03-20");
+    await page.locator("#trip-end").fill("2027-03-23");
+    await expect(page.getByText("3박 4일")).toBeVisible();
+    await shot(page, "91-new-trip");
+    await page.getByRole("button", { name: "만들기" }).click();
+
+    await expect(page.getByRole("heading", { name: "QA 도쿄 여행" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^\d일차/ })).toHaveCount(4);
+    await shot(page, "92-new-trip-opened");
+
+    // reopening the app lands in the last trip
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "QA 도쿄 여행" })).toBeVisible();
+
+    // delete it from 더보기 → 여행 설정
+    await page.getByRole("button", { name: "더보기" }).click();
+    await page.getByRole("button", { name: /여행 설정/ }).click();
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.locator("#trip-delete-confirm").fill("QA 도쿄 여행");
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /QA 도쿄 여행/ })).toHaveCount(0);
+  });
+
+  test("일정이 있는 날을 빼는 날짜 변경은 막고 안내한다", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "더보기" }).click();
+    await page.getByRole("button", { name: /여행 설정/ }).click();
+    await page.locator("#set-trip-end").fill("2026-12-04");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText(/일정이 있어서 그 날짜는 뺄 수 없어요/)).toBeVisible();
   });
 });
 
