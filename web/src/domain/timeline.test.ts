@@ -87,6 +87,32 @@ describe("effectiveItems", () => {
   });
 });
 
+describe("미리보기", () => {
+  const items = [
+    item({ id: "c1", order: 1 }),
+    item({ id: "a1", group: "g", branch: "A", order: 1 }),
+    item({ id: "b1", group: "g", branch: "B", order: 1 }),
+  ];
+
+  it("고르기 전에 플랜 B를 미리 보면 B 기준으로 이어 붙인다", () => {
+    // given
+    const entries = buildDay("d2", items, [group()]);
+    // when
+    const result = effectiveItems(entries, new Map([["g", "B"]]));
+    // then
+    expect(result.map((i) => i.id)).toEqual(["c1", "b1"]);
+  });
+
+  it("이미 고른 갈림길은 미리보기보다 선택한 플랜이 우선이다", () => {
+    // given
+    const entries = buildDay("d2", items, [group({ selected: "A" })]);
+    // when
+    const result = effectiveItems(entries, new Map([["g", "B"]]));
+    // then
+    expect(result.map((i) => i.id)).toEqual(["c1", "a1"]);
+  });
+});
+
 describe("reorder", () => {
   const list = [
     { id: "a", order: 1 },

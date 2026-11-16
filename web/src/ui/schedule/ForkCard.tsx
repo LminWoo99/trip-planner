@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { MemoToggle } from "./MemoToggle";
-import { ArrowUpRight, Check, ChevronDown, ChevronUp, CloudFog, Link2, Pencil, Plus, RotateCcw, Split } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronUp, CloudFog, Link2, Pencil, Plus, RotateCcw, Split } from "lucide-react";
 import type { BranchKey, Item, Member } from "../../domain/types";
 import type { ForkEntry } from "../../domain/timeline";
 import { estimateLeg, formatKm, formatMinutes, isSameSpot, type LatLng } from "../../domain/geo";
@@ -19,6 +19,10 @@ interface Props {
   dayDate: string;
   branchCosts: ReadonlyMap<BranchKey, PlannedCost>;
   onPick: (key: BranchKey) => void;
+  /** the plan being previewed; owned by the screen so the day cost and map follow it */
+  tab: BranchKey;
+  onTab: (key: BranchKey) => void;
+  onOpenItem: (item: Item) => void;
   onEdit: () => void;
   onAddItem: (key: BranchKey) => void;
 }
@@ -26,10 +30,9 @@ interface Props {
 const hasLoc = (i: Item): i is Item & LatLng => i.lat !== null && i.lng !== null;
 
 /** Before a choice: the trail splits into the plans; tap or swipe to preview, then confirm. */
-export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branchCosts, onPick, onEdit, onAddItem }: Props) {
+export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branchCosts, tab, onTab: setTab, onOpenItem, onPick, onEdit, onAddItem }: Props) {
   const { group, branches } = entry;
   const keys = group.branches.map((b) => b.key);
-  const [tab, setTab] = useState<BranchKey>(keys[0] ?? "A");
   const at = Math.max(0, keys.indexOf(tab));
   const branch = group.branches[at];
   const steps = branches.get(tab) ?? [];
@@ -102,7 +105,9 @@ export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branc
               <div className="p-row">
                 {num !== null ? <span className="p-mk">{num}</span> : <span className="p-mk dot" />}
                 <div style={{ minWidth: 0 }}>
-                  <div className="p-title">{it.title}</div>
+                  <button className="p-title p-open" onClick={() => onOpenItem(it)} aria-label={`${it.title} 상세보기`}>
+                    <span>{it.title}</span><ChevronRight className="icon" />
+                  </button>
                   {(it.time || it.place || it.stops.length > 0) && <div className="p-meta">{it.time && <span>{it.time}</span>}{it.place && <span>{it.place}</span>}{it.stops.length > 0 && <span>경유 {it.stops.length}곳</span>}</div>}
                   {it.memo && <MemoToggle memo={it.memo} />}
                 </div>

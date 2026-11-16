@@ -52,18 +52,26 @@ export function buildDay(dayId: string, items: readonly Item[], groups: readonly
   return entries.map((e) => e.entry);
 }
 
-/** The branch that counts for maps, routes and costs: the chosen one, or the first before a choice. */
-export function effectiveBranch(group: Group): BranchKey | null {
-  return group.selected ?? group.branches[0]?.key ?? null;
+/** Plans being previewed on forks that are not decided yet (group id → plan). */
+export type Preview = ReadonlyMap<string, BranchKey>;
+
+/**
+ * The branch that counts for maps, routes and costs: the chosen one; before a choice,
+ * the plan being previewed, otherwise the first.
+ */
+export function effectiveBranch(group: Group, preview?: Preview): BranchKey | null {
+  const previewed = preview?.get(group.id);
+  const valid = previewed && group.branches.some((b) => b.key === previewed) ? previewed : null;
+  return group.selected ?? valid ?? group.branches[0]?.key ?? null;
 }
 
 /** Items of the day in visiting order, following the effective branch of every fork. */
-export function effectiveItems(entries: readonly DayEntry[]): Item[] {
+export function effectiveItems(entries: readonly DayEntry[], preview?: Preview): Item[] {
   const out: Item[] = [];
   for (const e of entries) {
     if (e.kind === "item") out.push(e.item);
     else {
-      const key = effectiveBranch(e.group);
+      const key = effectiveBranch(e.group, preview);
       if (key) out.push(...(e.branches.get(key) ?? []));
     }
   }
