@@ -80,6 +80,8 @@ export interface Item {
   readonly stops: readonly Stop[];
   /** file names of photos attached to the memo */
   readonly photos: readonly string[];
+  /** booking whose tickets this item uses */
+  readonly booking: string | null;
 }
 
 export interface Place {
@@ -132,6 +134,8 @@ export interface Booking {
   readonly code: string;
   readonly memo: string;
   readonly link: string;
+  /** ticket images (protected files) */
+  readonly files: readonly string[];
 }
 
 export interface Note {

@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, Ellipsis, ListChecks, MapPinned, Wallet } from "lucide-react";
 import { closeTrip, useApp } from "../app/store";
 import { stamp } from "./format";
+import { keepTicketsOffline } from "../infra/photos";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
 // other tabs load on first visit so the schedule opens fast on a slow connection
 const PlacesScreen = lazy(() => import("./PlacesScreen").then((m) => ({ default: m.PlacesScreen })));
@@ -20,6 +21,12 @@ type TabId = (typeof TABS)[number]["id"];
 
 export function Shell() {
   const app = useApp();
+  // keep every ticket image on the phone while there is signal
+  const ticketKey = app.snapshot?.bookings.map((b) => b.id + b.files.join()).join("|") ?? "";
+  useEffect(() => {
+    if (app.snapshot && ticketKey) void keepTicketsOffline(app.snapshot.bookings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketKey, app.online]);
   const [tab, setTab] = useState<TabId>("schedule");
   const [tabbarHidden, setTabbarHidden] = useState(false);
 

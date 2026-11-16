@@ -122,7 +122,7 @@ describe("공용비", () => {
 describe("일정 예상 비용", () => {
   const item = (over: Partial<Item>): Item => ({
     id: "i", day: "d2", order: 1, time: "", cat: "etc", title: "", place: "", placeId: "", lat: null, lng: null,
-    memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], photos: [], ...over,
+    memo: "", cost: 0, cur: null, link: "", done: false, group: null, branch: null, stops: [], photos: [], booking: null, ...over,
   });
   const group = (selected: Group["selected"]): Group => ({
     id: "g", day: "d2", order: 2, title: "", decideAt: "",

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImagePlus, X } from "lucide-react";
-import { fileToken, photoUrl } from "../infra/photos";
+import { fileToken, fileUrl, photoUrl, type FileCollection } from "../infra/photos";
 
 /** Current file token for protected photos; renewed while the screen is open. */
 export function useFileToken(enabled: boolean): string | null {
@@ -62,8 +62,10 @@ export function PhotoViewer({ itemId, photos, start, token, onClose }: { itemId:
 }
 
 /** Edit attached photos: existing ones can be removed, new ones previewed before saving. */
-export function PhotoPicker({ itemId, existing, removed, added, max = 6, onRemoveExisting, onAdd, onRemoveAdded }: {
+export function PhotoPicker({ itemId, collection = "items", label = "사진", existing, removed, added, max = 6, onRemoveExisting, onAdd, onRemoveAdded }: {
   itemId: string | null;
+  collection?: FileCollection;
+  label?: string;
   existing: readonly string[];
   removed: ReadonlySet<string>;
   added: readonly File[];
@@ -86,7 +88,7 @@ export function PhotoPicker({ itemId, existing, removed, added, max = 6, onRemov
     <div className="photo-strip edit">
       {kept.map((f) => (
         <span key={f} className="photo-thumb">
-          {tok && itemId && <img src={photoUrl(itemId, f, tok, "240x240")} alt="" />}
+          {tok && itemId && <img src={fileUrl(collection, itemId, f, tok, "240x240")} alt="" />}
           <button type="button" className="photo-x" aria-label="사진 빼기" onClick={() => onRemoveExisting(f)}><X className="icon" /></button>
         </span>
       ))}
@@ -98,7 +100,7 @@ export function PhotoPicker({ itemId, existing, removed, added, max = 6, onRemov
       ))}
       {room > 0 && (
         <label className="photo-thumb photo-add">
-          <ImagePlus className="icon" /><span>사진</span>
+          <ImagePlus className="icon" /><span>{label}</span>
           <input type="file" accept="image/*" multiple hidden onChange={(e) => { const fs = [...(e.target.files ?? [])].slice(0, room); if (fs.length) onAdd(fs); e.target.value = ""; }} />
         </label>
       )}
