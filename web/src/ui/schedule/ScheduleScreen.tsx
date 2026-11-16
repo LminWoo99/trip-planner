@@ -23,6 +23,7 @@ const ItemSheet = lazy(() => import("./ItemSheet").then((m) => ({ default: m.Ite
 const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.GroupSheet })));
 const RouteSheet = lazy(() => import("./RouteSheet").then((m) => ({ default: m.RouteSheet })));
 const MoveCopySheet = lazy(() => import("./MoveCopySheet").then((m) => ({ default: m.MoveCopySheet })));
+const ItemDetailSheet = lazy(() => import("./ItemDetailSheet").then((m) => ({ default: m.ItemDetailSheet })));
 const DaySheet = lazy(() => import("./DaySheet").then((m) => ({ default: m.DaySheet })));
 
 const located = (i: Item): LatLng | null => (i.lat !== null && i.lng !== null ? { lat: i.lat, lng: i.lng } : null);
@@ -40,6 +41,8 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [bulk, setBulk] = useState<"move" | "copy" | "delete" | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
   const [editingDay, setEditingDay] = useState(false);
+  const [preview, setPreview] = useState<Map<string, BranchKey>>(new Map());
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -49,7 +52,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   useEffect(() => () => onSelectionBar(false), [onSelectionBar]);
 
   const entries = useMemo(() => (snapshot && day ? buildDay(day.id, snapshot.items, snapshot.groups) : []), [snapshot, day]);
-  const effective = useMemo(() => effectiveItems(entries), [entries]);
+  const effective = useMemo(() => effectiveItems(entries, preview), [entries, preview]);
   const numbers = useMemo(() => {
     const m = new Map<string, number>();
     let n = 1;
@@ -67,8 +70,12 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const other = members.find((m) => m.id !== meId);
   const terrain = effective.some((i) => i.cat === "trek");
   const firstFork = entries.find((e) => e.kind === "fork");
-  const mapNote = firstFork && firstFork.kind === "fork"
-    ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected} 동선` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)} 기준`)
+  const basisLabel = firstFork && firstFork.kind === "fork"
+    ? (firstFork.group.selected
+      ? `플랜 ${firstFork.group.selected}`
+      : preview.has(firstFork.group.id) ? `플랜 ${effectiveBranch(firstFork.group, preview)} 미리보기` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`)
+    : null;
+  const mapNote = basisLabel ? `${basisLabel} 동선`
     : `${day.n}일차 동선`;
 
   const goDay = (i: number) => {
@@ -103,7 +110,8 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
     if (e.kind === "item") { pushItem(e.item); continue; }
     const g = e.group;
     if (!g.selected) {
-      const basis = e.branches.get(effectiveBranch(g) ?? "A") ?? [];
+      const shown = effectiveBranch(g, preview) ?? "A";
+      const basis = e.branches.get(shown) ?? [];
       rows.push(
         <div className="tl-row" key={g.id}>
           <div className="tl-rail"><span className="mk"><Split className="icon" /></span><span className="tl-time">결정</span></div>
@@ -116,6 +124,9 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
             summit={weatherFor(forecast, "fansipan", day.date)}
             dayDate={day.date}
             branchCosts={new Map(g.branches.map((b) => [b.key, plannedCost(e.branches.get(b.key) ?? [], rates)]))}
+            tab={shown}
+            onTab={(k) => setPreview(new Map(preview).set(g.id, k))}
+            onOpenItem={(it) => setDetailId(it.id)}
             onPick={(k) => pick(g, k)}
             onEdit={() => setGroupSheet({ group: g })}
             onAddItem={(k) => openNew(g.id, k)}
@@ -156,7 +167,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         }}
       >
         <div className="day-top">
-          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={firstFork && firstFork.kind === "fork" ? (firstFork.group.selected ? `플랜 ${firstFork.group.selected}` : `선택 전, 플랜 ${effectiveBranch(firstFork.group)}`) : null} />}
+          {!edit && <DayHead day={day} forecast={forecast} planned={planned} spent={spent} onEdit={() => setEditingDay(true)} basis={basisLabel} />}
           {edit && <div className="day-head"><h2>{day.n}일차 <span style={{ color: "var(--ink3)", fontWeight: 500, fontSize: 15 }}>{shortDay(day.date)}</span></h2></div>}
           <Suspense fallback={<div className="map" />}><DayMap stops={effective.filter((i) => numbers.has(i.id)).map((item) => ({ n: numbers.get(item.id)!, item }))} note={mapNote} terrain={terrain} /></Suspense>
         </div>
@@ -192,6 +203,12 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         {itemSheet && <ItemSheet item={itemSheet.item} target={itemSheet.target} onClose={() => setItemSheet(null)} />}
         {groupSheet && <GroupSheet group={groupSheet.group} day={day.id} onClose={() => setGroupSheet(null)} />}
         {editingDay && <DaySheet day={day} onClose={() => setEditingDay(false)} />}
+        {detailId && !itemSheet && !routeId && (() => {
+          const it = snapshot.items.find((x) => x.id === detailId);
+          return it ? <ItemDetailSheet item={it} onClose={() => setDetailId(null)}
+            onEdit={() => { setDetailId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }}
+            onRoute={() => { setDetailId(null); setRouteId(it.id); }} /> : null;
+        })()}
         {routeId && !itemSheet && (() => {
           const it = snapshot.items.find((x) => x.id === routeId);
           return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;

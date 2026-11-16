@@ -136,7 +136,12 @@ test.describe("일정", () => {
     await fork.getByRole("button", { name: "플랜 B에 일정 추가" }).click();
     await addItem("QA 플랜B 비용", "1000000");
     await expect(fork.getByRole("tab", { name: /B/ })).toContainText("약 53,000원");
-    await expect(page.locator(".day-cost")).toContainText("플랜 A 기준");
+    // previewing B (before deciding) already moves the day total to B
+    await expect(page.locator(".day-cost")).toContainText("약 64,000원");
+    await expect(page.locator(".day-cost")).toContainText("플랜 B 미리보기");
+    await fork.getByRole("tab", { name: /A/ }).click();
+    await expect(page.locator(".day-cost")).toContainText("약 11,000원");
+    await expect(page.locator(".day-cost")).toContainText("플랜 A 미리보기");
     await fork.scrollIntoViewIfNeeded();
     await shot(page, "47-fork-costs");
     await fork.getByRole("tab", { name: /B/ }).click();
@@ -255,6 +260,20 @@ test.describe("일정", () => {
     await expect.poll(() => titles.allTextContents()).toEqual([before[1], before[0], ...before.slice(2)]);
   });
 
+  test("갈림길 플랜의 세부 일정을 누르면 상세보기가 열리고 고치기로 넘어간다", async ({ page }) => {
+    await page.goto("/");
+    await openDay(page, 2);
+    const fork = page.locator("section.fork").first();
+    await fork.getByRole("button", { name: /썬 월드 판시판 케이블카 역 상세보기/ }).click();
+    const sheet = page.getByRole("dialog", { name: "썬 월드 판시판 케이블카 역" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByText("Sun World Fansipan Legend")).toBeVisible();
+    await expect(sheet.locator(".detail-memo")).toContainText("케이블카");
+    await shot(page, "26-plan-step-detail");
+    await sheet.getByRole("button", { name: "고치기" }).click();
+    await expect(page.getByRole("dialog", { name: "일정 고치기" })).toBeVisible();
+  });
+
   test("편집 화면과 갈림길 플랜에서 메모를 그 자리에서 펼쳐 본다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 2);
@@ -335,7 +354,7 @@ test.describe("Google 지도·장소", () => {
     await page.waitForTimeout(2500);
     await shot(page, "85-route-sheet");
     // clean up
-    await page.getByRole("button", { name: "고치기" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "고치기", exact: true }).click();
     await page.getByRole("button", { name: "삭제" }).click();
     await page.getByRole("button", { name: "삭제하기" }).click();
     await expect(page.locator(".card", { hasText: "QA 트레킹 코스" })).toHaveCount(0);
