@@ -36,6 +36,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
   const [cost, setCost] = useState(item?.cost ? String(item.cost) : "");
   const [cur, setCur] = useState<Currency>(item?.cur ?? "VND");
   const [link, setLink] = useState(item?.link ?? "");
+  const [booking, setBooking] = useState<string>(item?.booking ?? "");
   const [day, setDay] = useState(item?.day ?? target.day);
   const [slot, setSlot] = useState(slotKey(item?.group ?? target.group, item?.branch ?? target.branch));
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -56,6 +57,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
       lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, placeId, stops,
       ...(newPhotos.length ? { "photos+": await Promise.all(newPhotos.map((f) => shrink(f))) } : {}),
       ...(removedPhotos.size ? { "photos-": [...removedPhotos] } : {}),
+      booking,
       day, group: group ?? "", branch: branch ?? "",
       ...(moved ? { order: nextOrder } : {}),
     };
@@ -174,6 +176,18 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
         <span>링크</span>
         <input id="item-link" className="input" type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" />
       </label>
+      {snapshot.bookings.length > 0 && (
+        <div className="field">
+          <span>연결된 예약</span>
+          <div className="chips" role="group" aria-label="연결된 예약">
+            <button type="button" className="chip" aria-pressed={booking === ""} onClick={() => setBooking("")}>없음</button>
+            {snapshot.bookings.map((b) => (
+              <button key={b.id} type="button" className="chip" aria-pressed={booking === b.id} onClick={() => setBooking(b.id)}>{b.title}{b.files.length ? ` · 티켓 ${b.files.length}` : ""}</button>
+            ))}
+          </div>
+          <small className="hint">고르면 일정 카드와 지금 카드에서 티켓을 바로 열 수 있어요.</small>
+        </div>
+      )}
     </Sheet>
   );
 }

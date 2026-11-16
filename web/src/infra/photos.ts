@@ -10,10 +10,27 @@ export async function fileToken(): Promise<string> {
   return token.value;
 }
 
-export function photoUrl(itemId: string, file: string, tok: string, thumb?: "240x240" | "1200x0"): string {
+export type FileCollection = "items" | "bookings";
+
+export function fileUrl(collection: FileCollection, id: string, file: string, tok: string, thumb?: "240x240" | "1200x0"): string {
   const q = new URLSearchParams({ token: tok });
   if (thumb) q.set("thumb", thumb);
-  return `/api/files/items/${itemId}/${encodeURIComponent(file)}?${q}`;
+  return `/api/files/${collection}/${id}/${encodeURIComponent(file)}?${q}`;
+}
+
+export const photoUrl = (itemId: string, file: string, tok: string, thumb?: "240x240" | "1200x0") => fileUrl("items", itemId, file, tok, thumb);
+
+/**
+ * Downloads every ticket image (full size and thumbnail) while online so the service worker keeps
+ * them on the phone; already-kept ones are answered from the phone's cache without network.
+ */
+export async function keepTicketsOffline(bookings: readonly { id: string; files: readonly string[] }[]): Promise<void> {
+  const files = bookings.flatMap((b) => b.files.map((f) => [b.id, f] as const));
+  if (!files.length || !navigator.onLine || !("serviceWorker" in navigator) || !navigator.serviceWorker.controller) return;
+  const tok = await fileToken();
+  for (const [id, f] of files) {
+    await Promise.all([fetch(fileUrl("bookings", id, f, tok)), fetch(fileUrl("bookings", id, f, tok, "240x240"))]).catch(() => { /* next open retries */ });
+  }
 }
 
 /** Shrinks a photo on the phone before upload (long side 1600px, JPEG) so it goes up fast on mobile data. */

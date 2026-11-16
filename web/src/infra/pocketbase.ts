@@ -34,6 +34,7 @@ export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[
     done: !!r.done, group: orNull<string>(r.group), branch: orNull<BranchKey>(r.branch),
     stops: Array.isArray(r.stops) ? r.stops : [],
     photos: Array.isArray(r.photos) ? r.photos : [],
+    booking: orNull<string>(r.booking),
   }),
   places: (r): Place => ({
     id: r.id, name: r.name, city: r.city, type: r.type, q: r.q, placeId: r.placeId ?? "", lat: num(r.lat), lng: num(r.lng),
@@ -45,7 +46,7 @@ export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[
     day: orNull<string>(r.day), memo: r.memo, created: r.created,
   }),
   checklist: (r): ChecklistItem => ({ id: r.id, text: r.text, cat: r.cat, who: r.who, memo: r.memo, done: !!r.done, order: r.order || 0 }),
-  bookings: (r): Booking => ({ id: r.id, type: r.type, title: r.title, when: r.when, code: r.code, memo: r.memo, link: r.link }),
+  bookings: (r): Booking => ({ id: r.id, type: r.type, title: r.title, when: r.when, code: r.code, memo: r.memo, link: r.link, files: Array.isArray(r.files) ? r.files : [] }),
   notes: (r): Note => ({ id: r.id, text: r.text }),
 };
 

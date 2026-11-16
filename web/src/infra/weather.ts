@@ -7,13 +7,15 @@ export interface Spot {
   readonly lat: number;
   readonly lng: number;
   readonly elevation: number;
+  /** IANA time zone of the place, for reading "today" and "now" at the destination */
+  readonly tz: string;
 }
 
 // Fansipan summit 22°18′12″N 103°46′30″E, 3,143m. Sa Pa town centre ~1,500m.
 export const SPOTS = {
-  sapa: { id: "sapa", name: "사파 시내", lat: 22.3364, lng: 103.8438, elevation: 1500 },
-  fansipan: { id: "fansipan", name: "판시판 정상", lat: 22.3033, lng: 103.775, elevation: 3143 },
-  hanoi: { id: "hanoi", name: "하노이", lat: 21.0285, lng: 105.8542, elevation: 15 },
+  sapa: { id: "sapa", name: "사파 시내", lat: 22.3364, lng: 103.8438, elevation: 1500, tz: "Asia/Ho_Chi_Minh" },
+  fansipan: { id: "fansipan", name: "판시판 정상", lat: 22.3033, lng: 103.775, elevation: 3143, tz: "Asia/Ho_Chi_Minh" },
+  hanoi: { id: "hanoi", name: "하노이", lat: 21.0285, lng: 105.8542, elevation: 15, tz: "Asia/Ho_Chi_Minh" },
 } as const satisfies Record<string, Spot>;
 
 const KNOWN: Record<string, Spot[]> = { 사파: [SPOTS.sapa, SPOTS.fansipan], 하노이: [SPOTS.hanoi] };
@@ -41,7 +43,7 @@ export interface Forecast {
   readonly bySpot: Readonly<Record<string, readonly DailyWeather[]>>;
 }
 
-const GEO_KEY = "weather-geo-v1";
+const GEO_KEY = "weather-geo-v2";
 const CACHE_KEY = "weather-cache-v2";
 const MAX_AGE_MS = 60 * 60 * 1000;
 
@@ -63,12 +65,25 @@ export async function resolveSpots(city: string): Promise<Spot[]> {
   try {
     const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${new URLSearchParams({ name, count: "1", language: "ko" })}`, { signal: AbortSignal.timeout(8000) });
     const hit = (await res.json()).results?.[0];
-    const spot: Spot | null = hit ? { id: `${hit.latitude},${hit.longitude}`, name: hit.name, lat: hit.latitude, lng: hit.longitude, elevation: Math.round(hit.elevation ?? 0) } : null;
+    const spot: Spot | null = hit ? { id: `${hit.latitude},${hit.longitude}`, name: hit.name, lat: hit.latitude, lng: hit.longitude, elevation: Math.round(hit.elevation ?? 0), tz: hit.timezone || deviceTz() } : null;
     writeJson(GEO_KEY, { ...geo, [name]: spot });
     return spot ? [spot] : [];
   } catch {
     return []; // offline: try again next time
   }
+}
+
+export const deviceTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/**
+ * Time zone for a day's city without waiting on the network: known cities, then cities
+ * looked up before on this phone, else the phone's own zone.
+ */
+export function tzForCity(city: string): string {
+  const known = spotsForCity(city)[0];
+  if (known) return known.tz;
+  const hit = readJson<Record<string, Spot | null>>(GEO_KEY, {})[lastLeg(city)];
+  return hit?.tz ?? deviceTz();
 }
 
 interface Cached { readonly fetchedAt: number; readonly days: readonly DailyWeather[] }

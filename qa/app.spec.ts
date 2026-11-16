@@ -588,3 +588,78 @@ test.describe("오프라인", () => {
     await context.setOffline(false);
   });
 });
+
+test.describe("지금 모드·티켓", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+  test("여행 당일이면 오늘이 열리고 지금 카드가 다음 일정과 출발 시각을 알려준다", async ({ page }) => {
+    // 2026-12-04 10:05 in Hanoi
+    await page.clock.setFixedTime(new Date("2026-12-04T03:05:00Z"));
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: /^3일차.*오늘$/ })).toHaveAttribute("aria-pressed", "true");
+    const card = page.getByRole("region", { name: "지금" });
+    await expect(card).toContainText("현지 10:05");
+    await expect(page.locator(".now-line")).toBeVisible();
+    await page.waitForTimeout(1500);
+    await shot(page, "95-now");
+  });
+
+  test("폰이 한국 시간이어도 하노이 날짜로 오늘을 고른다", async ({ browser }, info) => {
+    test.skip(info.project.name !== "iphone", "time zone logic; once is enough");
+    const ctx = await browser.newContext({ ...info.project.use, timezoneId: "Asia/Seoul", storageState: "qa/.auth/minu.json" });
+    const page = await ctx.newPage();
+    // 12/05 01:30 in Seoul is still 12/04 23:30 in Hanoi
+    await page.clock.setFixedTime(new Date("2026-12-04T16:30:00Z"));
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: /^3일차.*오늘$/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("region", { name: "지금" })).toContainText("현지 23:30");
+    await ctx.close();
+  });
+
+  test("예약에 티켓을 붙이면 썸네일이 생기고 크게 열면 예약번호와 함께 보인다", async ({ page, context }, info) => {
+    test.skip(info.project.name !== "iphone", "writes to the shared seed; once is enough");
+    await page.goto("/");
+    await page.getByRole("button", { name: "더보기" }).click();
+    await page.getByRole("button", { name: /알파인 코스터/ }).first().click();
+    const sheet = page.getByRole("dialog", { name: "예약 고치기" });
+    await sheet.locator("#bk-code").fill("KL8842019");
+    await sheet.locator(".photo-add input[type=file]").setInputFiles("qa/fixtures/photo.png");
+    await sheet.getByRole("button", { name: "저장" }).click();
+    const thumb = page.getByRole("button", { name: /알파인 코스터.*티켓 1 크게 보기/ });
+    await expect(thumb).toBeVisible();
+    await expect(page.getByText("이 폰에 저장돼 오프라인에서도 열려요")).toBeVisible();
+    await shot(page, "96-booking-ticket");
+    await thumb.click();
+    const viewer = page.getByRole("dialog", { name: /알파인 코스터.*티켓/ });
+    await expect(viewer.getByText("KL8842019")).toBeVisible();
+    await expect(viewer.locator("img")).toBeVisible();
+    await page.waitForTimeout(400);
+    await shot(page, "97-ticket-viewer");
+    await viewer.getByRole("button", { name: "닫기" }).click();
+
+    // link it from a schedule item, then open from the card
+    await page.getByRole("button", { name: "일정", exact: true }).click();
+    await openDay(page, 3);
+    await page.locator(".tl .c-title").filter({ hasText: /코스터/ }).first().click();
+    const item = page.getByRole("dialog");
+    await item.getByRole("group", { name: "연결된 예약" }).getByRole("button", { name: /알파인 코스터/ }).click();
+    await item.getByRole("button", { name: "저장", exact: true }).click();
+    await page.getByRole("button", { name: "티켓 1장" }).first().click();
+    await expect(page.getByRole("dialog", { name: /알파인 코스터.*티켓/ })).toBeVisible();
+    await page.getByRole("button", { name: "닫기" }).click();
+
+    // with the service worker in control the ticket is kept; it must open with no network
+    await page.evaluate(async () => { await navigator.serviceWorker?.ready; });
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^1일차/ })).toBeVisible();
+    await page.waitForTimeout(2000); // prefetch of tickets
+    await context.setOffline(true);
+    await page.reload();
+    await page.getByRole("button", { name: "더보기", exact: true }).click();
+    await page.getByRole("button", { name: /알파인 코스터.*티켓 1 크게 보기/ }).click();
+    const off = page.getByRole("dialog", { name: /알파인 코스터.*티켓/ });
+    await expect.poll(() => off.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth), { timeout: 10000 }).toBeGreaterThan(0);
+    await page.waitForTimeout(300);
+    await shot(page, "98-ticket-offline");
+    await context.setOffline(false);
+  });
+});
