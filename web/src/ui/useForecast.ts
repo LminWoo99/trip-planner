@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
-import { cachedForecast, fetchForecast, type Forecast } from "../infra/weather";
+import { cachedForecast, fetchForecast, resolveSpots, spotsForCity, type Forecast, type Spot } from "../infra/weather";
 
-export function useForecast(): Forecast | null {
-  const [forecast, setForecast] = useState<Forecast | null>(() => cachedForecast());
+/** Weather spots for a day's city and their forecast: the phone's copy first, then a fresh one. */
+export function useForecast(city: string): { spots: Spot[]; forecast: Forecast | null } {
+  const [spots, setSpots] = useState<Spot[]>(() => spotsForCity(city));
+  const [forecast, setForecast] = useState<Forecast | null>(() => cachedForecast(spotsForCity(city)));
   useEffect(() => {
     let alive = true;
-    void fetchForecast().then((f) => { if (alive && f) setForecast(f); });
+    void resolveSpots(city).then(async (found) => {
+      if (!alive) return;
+      setSpots(found);
+      setForecast(cachedForecast(found));
+      const fresh = await fetchForecast(found);
+      if (alive) setForecast(fresh);
+    });
     return () => { alive = false; };
-  }, []);
-  return forecast;
+  }, [city]);
+  return { spots, forecast };
 }
