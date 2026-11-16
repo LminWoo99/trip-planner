@@ -13,13 +13,15 @@ export function Marker({ item, n }: { item: Item; n: number | null }) {
   return n !== null ? <span className={`mk ${item.done ? "done" : ""}`}>{n}</span> : <span className="mk dot" />;
 }
 
-export function GapRow({ from, to }: { from: LatLng; to: LatLng }) {
+export function GapRow({ from, to, onOpen }: { from: LatLng; to: LatLng; onOpen: () => void }) {
   const leg = estimateLeg(from, to);
   const Mode = leg.mode === "walk" ? Footprints : Car;
   return (
-    <div className="tl-gap" aria-label={`다음 장소까지 ${formatKm(leg.km)}`}>
+    <div className="tl-gap">
       <span className="dist">{formatKm(leg.km)}</span>
-      <span className="gap-mode"><Mode className="icon" />{leg.mode === "walk" ? "도보" : "차"} 약 {formatMinutes(leg.minutes)}</span>
+      <button className="gap-btn" onClick={onOpen} aria-label={`다음 장소까지 ${formatKm(leg.km)}, ${leg.mode === "walk" ? "도보" : "차"} 약 ${formatMinutes(leg.minutes)}. 이동 방법 보기`}>
+        <Mode className="icon" />{leg.mode === "walk" ? "도보" : "차"} 약 {formatMinutes(leg.minutes)}<ChevronRight className="icon chev" />
+      </button>
     </div>
   );
 }
