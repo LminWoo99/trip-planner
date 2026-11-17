@@ -60,7 +60,8 @@ async function refreshTrips() {
   }
 }
 
-async function refresh() {
+/** Reload the open trip (or the trip list) from the server. */
+export async function refresh() {
   const tripId = state.tripId;
   if (!tripId) { await refreshTrips(); return; }
   try {

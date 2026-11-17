@@ -7,6 +7,7 @@ import { TicketStrip } from "./Tickets";
 import { PhotoPicker } from "./Photos";
 import { shrink } from "../infra/photos";
 import { me } from "../infra/pocketbase";
+import { MembersSheet } from "./MembersSheet";
 import { create, remove, signOut, update, updateTrip, useApp } from "../app/store";
 import { attempt, toast } from "./toast";
 import { Sheet } from "./Sheet";
@@ -41,6 +42,7 @@ export function MoreScreen() {
   const [settings, setSettings] = useState(false);
   const [fill, setFill] = useState(false);
   const [tripSettings, setTripSettings] = useState(false);
+  const [members, setMembers] = useState(false);
   if (!snapshot) return null;
 
   return (
@@ -94,6 +96,7 @@ export function MoreScreen() {
 
         <div className="section">
           <div className="list">
+            <button className="li" onClick={() => setMembers(true)}><div className="li-title">일행</div><div className="li-sub" style={{ paddingRight: 8 }}>{snapshot.members.length}명{snapshot.members.find((m) => m.role === "owner")?.user === account?.id ? ", 초대와 승인" : ""}</div></button>
             <button className="li" onClick={() => setTripSettings(true)}><div className="li-title">여행 설정</div><div className="li-sub" style={{ paddingRight: 8 }}>이름·날짜·삭제</div></button>
             <button className="li" onClick={() => setSettings(true)}><div className="li-title">환율·예산 설정</div><div className="li-sub num" style={{ paddingRight: 8 }}>1₫={snapshot.trip.vndKrw}원, $1={snapshot.trip.usdKrw.toLocaleString()}원</div></button>
             <button className="li" onClick={() => setFill(true)}>
@@ -111,6 +114,7 @@ export function MoreScreen() {
       {settings && <SettingsSheet onClose={() => setSettings(false)} />}
       {fill && <FillLocationsSheet onClose={() => setFill(false)} />}
       {tripSettings && <TripSettingsSheet onClose={() => setTripSettings(false)} />}
+      {members && <MembersSheet onClose={() => setMembers(false)} />}
     </>
   );
 }
