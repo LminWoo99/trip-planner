@@ -19,6 +19,8 @@ export interface Member {
   readonly id: string;
   readonly user: string;
   readonly displayName: string;
+  /** "owner" made the trip and approves who joins */
+  readonly role?: "owner" | "member";
 }
 
 export interface Day {

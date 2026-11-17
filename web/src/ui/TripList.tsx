@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { newTrip, openTrip, useApp } from "../app/store";
 import { nightsLabel, sortTrips, tripStatus, type TripSummary } from "../domain/trips";
-import { pb } from "../infra/pocketbase";
+import { myInvites, pb } from "../infra/pocketbase";
 import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
 import { shortDay, todayIso } from "./format";
@@ -13,6 +13,14 @@ export function TripList() {
   const [creating, setCreating] = useState(false);
   const today = todayIso();
   const me = pb.authStore.record?.name as string | undefined;
+  const [inv, setInv] = useState<{ pending: { tripId: string; title: string }[]; waiting: Record<string, number> }>({ pending: [], waiting: {} });
+  useEffect(() => {
+    const load = () => { if (navigator.onLine) myInvites().then(setInv).catch(() => { /* offline or old server */ }); };
+    load();
+    const onVis = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [trips?.length]);
 
   if (!trips) {
     return <div className="app"><div className="empty" style={{ marginTop: "40vh" }}>{online ? "여행을 불러오는 중이에요" : "오프라인이에요. 연결되면 여행 목록을 불러와요."}</div></div>;
@@ -26,11 +34,18 @@ export function TripList() {
         {me && <span className="trips-who">{me}로 보는 중</span>}
       </header>
       <div className="screen ground trips-list">
-        {trips.length === 0 && <div className="empty">아직 여행이 없어요.<br />오른쪽 아래 + 새 여행으로 시작해 보세요.</div>}
+        {inv.pending.length > 0 && <div className="group-label">승인 기다리는 여행</div>}
+        {inv.pending.map((p) => (
+          <div key={p.tripId} className="trip-card pending" aria-label={`${p.title}, 방장 승인 기다리는 중`}>
+            <span className="dday"><b>대기</b><small>승인 전</small></span>
+            <span style={{ minWidth: 0 }}><span className="trip-title">{p.title}</span><span className="trip-sub">방장이 승인하면 열 수 있어요</span></span>
+          </div>
+        ))}
+        {trips.length === 0 && inv.pending.length === 0 && <div className="empty">아직 여행이 없어요.<br />오른쪽 아래 + 새 여행으로 시작해 보세요.</div>}
         {coming.length > 0 && <div className="group-label">다가오는 여행</div>}
-        {coming.map((t) => <TripCard key={t.id} trip={t} today={today} />)}
+        {coming.map((t) => <TripCard key={t.id} trip={t} today={today} waiting={inv.waiting[t.id] ?? 0} />)}
         {past.length > 0 && <div className="group-label">다녀온 여행</div>}
-        {past.map((t) => <TripCard key={t.id} trip={t} today={today} />)}
+        {past.map((t) => <TripCard key={t.id} trip={t} today={today} waiting={inv.waiting[t.id] ?? 0} />)}
       </div>
       <button className="fab fab-wide" onClick={() => setCreating(true)}><Plus className="icon" />새 여행</button>
       {creating && <NewTripSheet onClose={() => setCreating(false)} />}
@@ -38,7 +53,7 @@ export function TripList() {
   );
 }
 
-function TripCard({ trip, today }: { trip: TripSummary; today: string }) {
+function TripCard({ trip, today, waiting }: { trip: TripSummary; today: string; waiting: number }) {
   const s = tripStatus(trip, today);
   const sub = s.kind === "ongoing" && trip.dayTitles[today] ? `오늘: ${trip.dayTitles[today]}` : trip.cities.join(" · ");
   return (
@@ -50,6 +65,7 @@ function TripCard({ trip, today }: { trip: TripSummary; today: string }) {
         <span className="trip-title">{trip.title}</span>
         <span className="trip-meta num"><span>{shortDay(trip.start)} – {shortDay(trip.end)}</span><span>{nightsLabel(trip)}</span></span>
         {sub && <span className="trip-sub">{sub}</span>}
+        {waiting > 0 && <span className="trip-wait">승인 기다리는 사람 {waiting}명</span>}
       </span>
       <ChevronRight className="icon" style={{ color: "var(--box)" }} />
     </button>

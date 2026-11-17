@@ -20,7 +20,7 @@ export const toTrip = (r: RecordModel): Trip => ({
   id: r.id, title: r.title, start: date(r.start), end: date(r.end),
   vndKrw: r.vndKrw || 0.053, usdKrw: r.usdKrw || 1395, budget: r.budget || 0,
 });
-export const toMember = (r: RecordModel): Member => ({ id: r.id, user: r.user, displayName: r.displayName });
+export const toMember = (r: RecordModel): Member => ({ id: r.id, user: r.user, displayName: r.displayName, role: r.role === "owner" ? "owner" : "member" });
 
 export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[K][number] } = {
   days: (r): Day => ({ id: r.id, n: r.n, date: date(r.date), city: r.city, title: r.title, stay: r.stay, memo: r.memo }),
@@ -101,6 +101,19 @@ export function me(): { id: string; name: string; username: string; admin: boole
   if (!r) return null;
   return { id: r.id, name: r.name ?? "", username: r.username ?? "", admin: r.role === "admin", perms: Array.isArray(r.perms) ? r.perms : [] };
 }
+
+// ---- invites ----
+
+export interface InvitePreview { tripId: string; title: string; start: string; end: string; cities: string[]; members: string[]; inviter: string; status: "none" | "pending" | "approved" | "rejected" | "member" }
+export interface JoinRequest { id: string; name: string; username: string; created: string }
+
+export const createInvite = (tripId: string): Promise<{ token: string; expires: string }> => pb.send(`/api/trips/${tripId}/invite`, { method: "POST" });
+export const invitePreview = (token: string): Promise<InvitePreview> => pb.send(`/api/invites/${encodeURIComponent(token)}`, { method: "GET" });
+export const requestJoin = (token: string): Promise<{ status: string }> => pb.send(`/api/invites/${encodeURIComponent(token)}/request`, { method: "POST" });
+export const tripRequests = (tripId: string): Promise<JoinRequest[]> => pb.send(`/api/trips/${tripId}/requests`, { method: "GET" });
+export const decideRequest = (id: string, approve: boolean) => pb.send(`/api/requests/${id}/decide`, { method: "POST", body: { approve } });
+export const myInvites = (): Promise<{ pending: { tripId: string; title: string }[]; waiting: Record<string, number> }> => pb.send("/api/me/invites", { method: "GET" });
+export const inviteUrl = (token: string) => `${location.origin}/j/${token}`;
 
 // ---- admin ----
 

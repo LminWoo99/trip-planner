@@ -5,11 +5,11 @@ import { login, signup } from "../infra/pocketbase";
 const ID_RULE = /^[a-z0-9_]{4,20}$/;
 
 /** Sign in, or create an account. Messages never say which of id/password was wrong. */
-export function Login({ onEnter }: { onEnter: () => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+export function Login({ onEnter, invited = false }: { onEnter: () => void; invited?: boolean }) {
+  const [mode, setMode] = useState<"login" | "signup">(invited ? "signup" : "login");
   return mode === "login"
-    ? <LoginForm onEnter={onEnter} onSignup={() => setMode("signup")} />
-    : <SignupForm onEnter={onEnter} onBack={() => setMode("login")} />;
+    ? <LoginForm onEnter={onEnter} onSignup={() => setMode("signup")} invited={invited} />
+    : <SignupForm onEnter={onEnter} onBack={() => setMode("login")} invited={invited} />;
 }
 
 const errText = (e: unknown, fallback: string) => {
@@ -29,7 +29,7 @@ function PasswordInput({ id, value, onChange, autoComplete }: { id: string; valu
   );
 }
 
-function LoginForm({ onEnter, onSignup }: { onEnter: () => void; onSignup: () => void }) {
+function LoginForm({ onEnter, onSignup, invited }: { onEnter: () => void; onSignup: () => void; invited: boolean }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [msg, setMsg] = useState("");
@@ -53,6 +53,7 @@ function LoginForm({ onEnter, onSignup }: { onEnter: () => void; onSignup: () =>
     <form className="auth" onSubmit={submit}>
       <img className="auth-mark" src="/icon.svg" alt="" />
       <h1 className="auth-title">답답해서<br />직접 만든 여행 일정</h1>
+      {invited && <p className="auth-note">초대를 받으려면 로그인해 주세요. 계정이 없으면 아래에서 가입할 수 있어요.</p>}
       <label className="field" htmlFor="login-id"><span>아이디</span></label>
       <input id="login-id" className="input" value={id} onChange={(e) => setId(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username" />
       <label className="field" htmlFor="login-pw" style={{ marginTop: 14 }}><span>비밀번호</span></label>
@@ -65,7 +66,7 @@ function LoginForm({ onEnter, onSignup }: { onEnter: () => void; onSignup: () =>
   );
 }
 
-function SignupForm({ onEnter, onBack }: { onEnter: () => void; onBack: () => void }) {
+function SignupForm({ onEnter, onBack, invited }: { onEnter: () => void; onBack: () => void; invited: boolean }) {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [pw, setPw] = useState("");
@@ -98,6 +99,7 @@ function SignupForm({ onEnter, onBack }: { onEnter: () => void; onBack: () => vo
   return (
     <form className="auth" onSubmit={submit}>
       <button type="button" className="auth-back" onClick={onBack} aria-label="로그인으로"><ChevronLeft className="icon" />가입하기</button>
+      {invited && <p className="auth-note">가입하면 초대받은 여행에 참여를 요청할 수 있어요.</p>}
       <label className="field" htmlFor="su-id"><span>아이디</span></label>
       <input id="su-id" className="input" value={id} onChange={(e) => setId(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" autoComplete="username" />
       <small className={`auth-cap ${id && !idOk ? "bad" : ""}`}>영문 소문자, 숫자, 밑줄로 4~20자</small>
