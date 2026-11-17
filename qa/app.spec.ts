@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Opens the item form from the + button; people with the AI permission first pick "직접 추가". */
+async function openItemForm(page: Page) {
+  await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+  const direct = page.getByRole("button", { name: /직접 추가/ });
+  await direct.or(page.locator("#item-title")).first().waitFor();
+  if (await direct.isVisible()) await direct.click();
+}
+
 // End-to-end QA on phone viewports. Screenshots go to qa-screens/ for visual review.
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `qa-screens/${test.info().project.name}-${name}.png`, fullPage: false });
@@ -103,7 +111,7 @@ test.describe("일정", () => {
   test("+ 버튼으로 일정을 추가하고 카드를 눌러 고치고 지운다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 4);
-    await page.getByRole("button", { name: "일정 추가" }).click();
+    await openItemForm(page);
     await page.getByLabel("제목").fill("QA 테스트 일정");
     await page.getByRole("button", { name: "카페" }).click();
     await page.locator("#item-time").fill("15:30");
@@ -126,7 +134,7 @@ test.describe("일정", () => {
   test("메모에 사진을 붙이면 카드에 썸네일이 보이고 눌러서 크게 본다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 4);
-    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await openItemForm(page);
     await page.getByLabel("제목").fill("QA 사진 일정");
     await page.locator(".photo-add input[type=file]").setInputFiles("qa/fixtures/photo.png");
     await expect(page.locator(".photo-strip.edit img")).toHaveCount(1);
@@ -156,7 +164,7 @@ test.describe("일정", () => {
       await expect(page.locator(".sheet")).toHaveCount(0);
     };
     // common item: 200,000₫ → 10,600원
-    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await openItemForm(page);
     await addItem("QA 공통 비용", "200000");
     await expect(page.locator(".day-cost")).toContainText("약 11,000원");
     // plan B item: 1,000,000₫ → 53,000원
@@ -426,7 +434,7 @@ test.describe("Google 지도·장소", () => {
   test("일정 추가에서 이름을 치면 Google 후보가 뜨고 고르면 위치가 채워진다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 2);
-    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await openItemForm(page);
     await page.locator("#item-place").fill("Pistachio Hotel Sapa");
     const first = page.locator(".suggest-row").first();
     await expect(first).toBeVisible({ timeout: 15000 });
@@ -442,7 +450,7 @@ test.describe("Google 지도·장소", () => {
     test.skip(info.project.name !== "iphone", "uses Google quota; once is enough");
     await page.goto("/");
     await openDay(page, 3);
-    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await openItemForm(page);
     await page.getByLabel("제목").fill("QA 트레킹 코스");
     await page.getByRole("button", { name: "트레킹" }).click();
     await page.getByRole("button", { name: "코스 붙여넣기" }).click();
@@ -812,10 +820,14 @@ test.describe("코디", () => {
     await expect(page.getByText("2명을 찾았어요")).toBeVisible({ timeout: 20000 });
     await shot(page, "101-outfit-found");
     await page.getByRole("button", { name: "이렇게 만들기" }).click();
+    // height can't come from a photo: it's asked next
+    await page.locator("#avatar-height").fill("178");
+    await expect(page.getByRole("button", { name: "동그란 안경" })).toHaveAttribute("aria-pressed", "true");
+    await shot(page, "101b-outfit-refine");
     await page.getByRole("button", { name: "이 아바타로 할게요" }).click();
     // dress up with text; an unknown word goes to the (fake) AI on save
     await page.getByRole("button", { name: "내 코디 정하기" }).click();
-    await page.locator("#outfit-text").fill("네이비 바람막이\n검정 등산바지\n트레킹화\n꽈배기 스웨터 같은 거");
+    await page.locator("#outfit-text").fill("네이비 바람막이\n검정 등산바지\n트레킹화\n아빠가 입던 그거");
     await expect(page.locator(".of-parsed li").first()).toContainText("겉옷");
     await page.getByRole("button", { name: "저장", exact: true }).click();
     await expect(page.locator(".of-list").first()).toContainText("네이비 바람막이");
@@ -849,7 +861,8 @@ test.describe("코디", () => {
     const page = await ctx.newPage();
     await page.goto("/");
     await expect(page.getByRole("button", { name: "코디", exact: true })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole("button", { name: "글로 넣기" })).toBeVisible();
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await expect(page.getByRole("button", { name: /글로 추가/ })).toBeVisible();
     await ctx.close();
   });
 
@@ -871,7 +884,10 @@ test.describe("코디", () => {
     await p.getByRole("button", { name: "만들기" }).click();
     await expect(p.getByRole("heading", { name: "권한 없는 여행" })).toBeVisible();
     await expect(p.getByRole("button", { name: "코디", exact: true })).toHaveCount(0);
-    await expect(p.getByRole("button", { name: "글로 넣기" })).toHaveCount(0);
+    await p.getByRole("button", { name: "일정 추가", exact: true }).click();
+    // without the AI permission the + button goes straight to the item form
+    await expect(p.locator("#item-title")).toBeVisible();
+    await expect(p.getByRole("button", { name: /글로 추가/ })).toHaveCount(0);
     await ctx.close();
     void page;
   });
@@ -885,7 +901,9 @@ test.describe("글로 일정 넣기", () => {
     await page.goto("/");
     await openDay(page, 2);
     const before = await page.locator(".tl .tl-row").count();
-    await page.getByRole("button", { name: "글로 넣기" }).click();
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await shot(page, "102b-add-menu");
+    await page.getByRole("button", { name: /글로 추가/ }).click();
     await page.locator("#ai-plan-text").fill("둘째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜");
     await page.getByRole("button", { name: "일정으로 나누기" }).click();
     const sheet = page.getByRole("dialog", { name: "이렇게 넣을게요" });
@@ -898,7 +916,8 @@ test.describe("글로 일정 넣기", () => {
     await expect(page.locator(".tl .tl-row")).toHaveCount(before + 1);
 
     // replace asks first, and history can bring the day back
-    await page.getByRole("button", { name: "글로 넣기" }).click();
+    await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+    await page.getByRole("button", { name: /글로 추가/ }).click();
     await page.locator("#ai-plan-text").fill("둘째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜");
     await page.getByRole("radio", { name: "그 날 일정 바꾸기" }).click();
     await page.getByRole("button", { name: "일정으로 나누기" }).click();

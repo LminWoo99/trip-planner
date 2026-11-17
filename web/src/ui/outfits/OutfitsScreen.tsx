@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Heart, Pencil, Sparkles } from "lucide-react";
 import { useApp } from "../../app/store";
-import { DEFAULT_LOOK, packedCount, type Garment } from "../../domain/outfit";
+import { DEFAULT_LOOK, packedCount, type Garment } from "../../domain/wardrobe";
 import { aiCoord, listOutfits, me, outfitPeople, saveOutfit, subscribeOutfits, type OutfitPerson, type OutfitRec } from "../../infra/pocketbase";
 import { describe, weatherFor } from "../../infra/weather";
 import { useForecast } from "../useForecast";
 import { tripToday, useNow } from "../useNow";
 import { attempt, toast } from "../toast";
-import { Avatar } from "./Avatar";
+import { Avatars } from "./Avatar";
 import { AvatarSetup } from "./AvatarSetup";
 import { OutfitSheet } from "./OutfitSheet";
 
@@ -112,16 +112,13 @@ export function OutfitsScreen() {
       <div className="screen ground of-screen">
         {weatherText && <div className="of-wx">{weatherText}</div>}
         <div className={`of-duo ${partner ? "" : "solo"}`}>
-          <button className="of-who" onClick={() => setEditing(true)} aria-label="내 코디 정하기">
-            <Avatar look={mePerson.avatar} items={mine?.items ?? []} label={`${mePerson.name} 아바타`} />
-            <b>{mePerson.name}<Pencil className="icon" /></b>
-          </button>
-          {partner && (
-            <div className="of-who">
-              <Avatar look={partner.avatar ?? DEFAULT_LOOK.f} items={theirs?.items ?? []} label={`${partner.name} 아바타`} />
-              <b>{partner.name}</b>
-            </div>
-          )}
+          {/* both on one ground line so the height difference shows */}
+          <Avatars className="of-scene" label={partner ? `${mePerson.name}와 ${partner.name}` : `${mePerson.name} 아바타`}
+            people={[{ look: mePerson.avatar, items: mine?.items ?? [] }, ...(partner ? [{ look: partner.avatar ?? DEFAULT_LOOK.f, items: theirs?.items ?? [] }] : [])]} />
+          <div className="of-names">
+            <button className="of-who" onClick={() => setEditing(true)} aria-label="내 코디 정하기"><b>{mePerson.name}<Pencil className="icon" /></b><small className="num">{mePerson.avatar.height}</small></button>
+            {partner && <div className="of-who"><b>{partner.name}</b>{partner.avatar && <small className="num">{partner.avatar.height}</small>}</div>}
+          </div>
           {partner && (
             <div className="of-heart">
               <button aria-pressed={iLike} aria-label="잘 어울려요" onClick={toggleLike}><Heart className="icon" fill={iLike ? "currentColor" : "none"} /></button>

@@ -1,8 +1,24 @@
 import { useMemo, useState } from "react";
-import { COLORS, DRAWABLE, parseGarment, SLOT_LABEL, type Garment, type Look } from "../../domain/outfit";
-import { aiClothes } from "../../infra/pocketbase";
+import { COLORS, DEFAULT_COLOR, parseGarment, SLOT_LABEL, type Garment, type Look, type Slot } from "../../domain/wardrobe";
+import { aiClothes, type AiGarment } from "../../infra/pocketbase";
 import { Sheet } from "../Sheet";
 import { Avatar } from "./Avatar";
+
+const SLOTS = Object.keys(SLOT_LABEL) as Slot[];
+
+/** AI answers only with features the avatar can draw; turn one into a garment. */
+function fromAi(g: Garment, a: AiGarment): Garment {
+  if (!SLOTS.includes(a.slot as Slot)) return g;
+  const slot = a.slot as Slot;
+  const pick = <T,>(v: T | string | undefined): T | undefined => (v && v !== "-" ? (v as T) : undefined);
+  const color = COLORS.find((c) => c[1] === a.color);
+  return {
+    ...g, slot, kind: "ai", label: a.label || SLOT_LABEL[slot],
+    color: color?.[1] ?? DEFAULT_COLOR[slot], colorName: color?.[2] ?? "",
+    sleeve: pick(a.sleeve), length: pick(a.length), fit: pick(a.fit), neck: pick(a.neck), closure: pick(a.closure),
+    texture: pick(a.texture), pattern: pick(a.pattern), shape: pick(a.shape), detail: pick(a.detail), style: pick(a.style),
+  };
+}
 
 /** Write the day's clothes one per line; the avatar dresses up as you type. Unknown words go to the AI on save. */
 export function OutfitSheet({ title, look, items, aiAllowed, partnerName, onSave, onClose }: {
@@ -27,12 +43,10 @@ export function OutfitSheet({ title, look, items, aiAllowed, partnerName, onSave
     const unknown = list.filter((g) => !g.slot).map((g) => g.text);
     if (unknown.length && aiAllowed && navigator.onLine) {
       try {
-        const { items: answers } = await aiClothes(unknown, DRAWABLE.map((d) => d.type), COLORS.map((c) => c[1]));
+        const { items: answers } = await aiClothes(unknown, COLORS.map((c) => c[1]));
         list = list.map((g) => {
           const a = g.slot ? null : answers.find((x) => x.text === g.text);
-          const d = a && DRAWABLE.find((x) => x.type === a.type);
-          const c = a && COLORS.find((x) => x[1] === a.color);
-          return d ? { ...g, slot: d.slot, type: d.type, label: d.label, color: c?.[1] ?? g.color, colorName: c?.[2] ?? g.colorName } : g;
+          return a ? fromAi(g, a) : g;
         });
       } catch { /* keep them as not understood */ }
     }
@@ -46,7 +60,7 @@ export function OutfitSheet({ title, look, items, aiAllowed, partnerName, onSave
         <div className="of-stage"><Avatar look={look} items={parsed} label="내 코디 미리보기" /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <label htmlFor="outfit-text" className="of-label">입을 옷 (한 줄에 하나)</label>
-          <textarea id="outfit-text" className="input of-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={"예:\n네이비 바람막이\n검정 등산바지\n트레킹화"} />
+          <textarea id="outfit-text" className="input of-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={"예:\n노스페이스 눕시\n카키 카고 팬츠\n회색 뉴발"} />
         </div>
       </div>
       {parsed.length > 0 && (
@@ -55,7 +69,7 @@ export function OutfitSheet({ title, look, items, aiAllowed, partnerName, onSave
             <li key={i}>
               {g.slot && <span className="of-dot" style={{ background: g.color }} />}
               <span className="of-txt">{g.text}</span>
-              <span className={`of-tag ${g.slot ? "" : "ask"}`}>{g.slot ? SLOT_LABEL[g.slot] : aiAllowed ? "저장할 때 AI가 알아봐요" : "그림에는 안 나와요"}</span>
+              <span className={`of-tag ${g.slot ? "" : "ask"}`}>{g.slot ? `${SLOT_LABEL[g.slot]} ${g.label}` : aiAllowed ? "저장할 때 AI가 알아봐요" : "그림에는 안 나와요"}</span>
             </li>
           ))}
         </ul>
