@@ -1,6 +1,6 @@
 import PocketBase, { type RecordModel } from "pocketbase";
 import { citiesOf, type TripSummary } from "../domain/trips";
-import type { Garment, Look } from "../domain/outfit";
+import { normalizeLook, type Features, type Garment, type Look } from "../domain/wardrobe";
 import type {
   Booking, BranchKey, ChecklistItem, Currency, Day, Expense, Group, Item, Member, Note, Place, Trip, TripSnapshot,
 } from "../domain/types";
@@ -123,7 +123,8 @@ export interface OutfitRec { id: string; day: string; user: string; items: Garme
 
 const toOutfit = (r: RecordModel): OutfitRec => ({ id: r.id, day: r.day, user: r.user, items: Array.isArray(r.items) ? r.items : [], likedBy: Array.isArray(r.likedBy) ? r.likedBy : [] });
 
-export const outfitPeople = (tripId: string): Promise<OutfitPerson[]> => pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" });
+export const outfitPeople = async (tripId: string): Promise<OutfitPerson[]> =>
+  ((await pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" })) as OutfitPerson[]).map((p) => ({ ...p, avatar: normalizeLook(p.avatar) }));
 export const saveLook = (look: Look, user?: string) => pb.send("/api/avatar", { method: "POST", body: { look, user } });
 export const listOutfits = async (tripId: string): Promise<OutfitRec[]> =>
   (await pb.collection("outfits").getFullList({ filter: pb.filter("trip = {:t}", { t: tripId }) })).map(toOutfit);
@@ -140,11 +141,12 @@ export async function subscribeOutfits(tripId: string, onChange: () => void): Pr
 // ---- AI ----
 
 export interface PlanItem { time: string; title: string; cat: string; place: string; memo: string; placeId?: string; lat?: number; lng?: number }
-export interface AiPerson { position: number; body: "m" | "f"; build: Look["build"]; hair: Look["hair"]; hairColor: string; skin: string; summary: string }
+export interface AiPerson { position: number; body: "m" | "f"; build: Look["build"]; hairStyle: string; glasses: Look["glasses"] | "none"; hairColor: string; skin: string; summary: string }
+export interface AiGarment extends Features { text: string; slot: string; label: string; color: string }
 
-export const aiAvatar = (image: string): Promise<{ people: AiPerson[] }> => pb.send("/api/ai/avatar", { method: "POST", body: { image } });
-export const aiClothes = (lines: string[], types: string[], colors: string[]): Promise<{ items: { text: string; type: string; color: string }[] }> =>
-  pb.send("/api/ai/clothes", { method: "POST", body: { lines, types, colors } });
+export const aiAvatar = (image: string, hairStyles: string[]): Promise<{ people: AiPerson[] }> => pb.send("/api/ai/avatar", { method: "POST", body: { image, hairStyles } });
+export const aiClothes = (lines: string[], colors: string[]): Promise<{ items: AiGarment[] }> =>
+  pb.send("/api/ai/clothes", { method: "POST", body: { lines, colors } });
 export const aiCoord = (day: string, weather: string): Promise<{ text: string }> => pb.send("/api/ai/coord", { method: "POST", body: { day, weather } });
 export const aiPlan = (tripId: string, text: string): Promise<{ days: { n: number; items: PlanItem[] }[] }> => pb.send("/api/ai/plan", { method: "POST", body: { tripId, text } });
 export const applyPlan = (tripId: string, mode: "append" | "replace", days: { day: string; items: PlanItem[] }[]): Promise<{ added: number }> =>

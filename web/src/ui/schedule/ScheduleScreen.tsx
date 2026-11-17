@@ -66,6 +66,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const today = tripToday(days, now);
   const [ticketOpen, setTicketOpen] = useState<Booking | null>(null);
   const [aiPlan, setAiPlan] = useState(false);
+  const [addMenu, setAddMenu] = useState(false);
   const canAi = !!currentUser()?.perms.includes("ai");
   const { spots, forecast } = useForecast(day?.city ?? "");
   useEffect(() => { onSelectionBar(edit && selected.size > 0); }, [edit, selected, onSelectionBar]);
@@ -246,8 +247,19 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         )}
       </div>
 
-      {!edit && canAi && <button className="fab-ai" onClick={() => setAiPlan(true)}><PenLine className="icon" />글로 넣기</button>}
-      {!edit && <button className="fab" aria-label="일정 추가" onClick={() => openNew()}><Plus className="icon" /></button>}
+      {!edit && <button className="fab" aria-label="일정 추가" onClick={() => (canAi ? setAddMenu(true) : openNew())}><Plus className="icon" /></button>}
+      {addMenu && (
+        <Sheet title={`${day.n}일차에 일정 추가`} onClose={() => setAddMenu(false)}>
+          <button className="add-opt" onClick={() => { setAddMenu(false); openNew(); }}>
+            <span className="add-ic"><Plus className="icon" /></span>
+            <span><b>직접 추가</b><span>시간, 장소, 메모를 하나씩 입력해요</span></span>
+          </button>
+          <button className="add-opt" onClick={() => { setAddMenu(false); setAiPlan(true); }}>
+            <span className="add-ic"><PenLine className="icon" /></span>
+            <span><b>글로 추가</b><span>"첫째 날 뭐 하고, 둘째 날 어디 가고"처럼 쓰면 AI가 날짜별로 나눠요</span></span>
+          </button>
+        </Sheet>
+      )}
       {edit && selected.size > 0 && (
         <div className="selbar">
           <b>{selected.size}개 선택</b>

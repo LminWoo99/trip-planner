@@ -1,9 +1,12 @@
 import { memo } from "react";
-import { wornBySlot, type Garment, type Look } from "../../domain/outfit";
-import { avatarSvg } from "./avatarSvg";
+import type { Garment, Look } from "../../domain/wardrobe";
+import { avatarScene } from "./avatarSvg";
 
-/** The paper-doll avatar wearing the given clothes. */
-export const Avatar = memo(function Avatar({ look, items, label, className = "" }: { look: Look; items: readonly Garment[]; label: string; className?: string }) {
-  // the markup is built only from checked hex colors and fixed shapes (see avatarSvg)
-  return <span className={`avatar ${className}`} dangerouslySetInnerHTML={{ __html: avatarSvg(look, wornBySlot(items), label) }} />;
+/** One or two people standing together (same ground line, so height differences show). */
+export const Avatars = memo(function Avatars({ people, label, className = "" }: { people: readonly { look: Look; items: readonly Garment[] }[]; label: string; className?: string }) {
+  // built only from checked hex colors and fixed shapes (see avatarSvg)
+  return <span className={`avatar ${className}`} dangerouslySetInnerHTML={{ __html: avatarScene(people, label) }} />;
 });
+
+export const Avatar = ({ look, items, label, className }: { look: Look; items: readonly Garment[]; label: string; className?: string }) =>
+  <Avatars people={[{ look, items }]} label={label} className={className} />;

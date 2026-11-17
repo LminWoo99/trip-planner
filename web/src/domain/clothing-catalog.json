@@ -1,0 +1,1276 @@
+[
+ {
+  "id": "padding_short",
+  "slot": "outer",
+  "label": "숏패딩",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "wide",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "quilted"
+  },
+  "keywords": [
+   "노스페이스눕시",
+   "패딩아우터",
+   "구스다운",
+   "패딩자켓",
+   "쇼트패딩",
+   "패딩재킷",
+   "짧은패딩",
+   "다운재킷",
+   "다운점퍼",
+   "패딩점퍼",
+   "숏패딩",
+   "덕다운",
+   "패딩",
+   "눕시"
+  ]
+ },
+ {
+  "id": "padding_long",
+  "slot": "outer",
+  "label": "롱패딩",
+  "attrs": {
+   "sleeve": "long",
+   "length": "knee",
+   "fit": "wide",
+   "neck": "hood",
+   "closure": "zip",
+   "texture": "quilted"
+  },
+  "keywords": [
+   "구스다운롱패딩",
+   "덕다운롱패딩",
+   "롱패딩점퍼",
+   "롱패딩코트",
+   "롱다운점퍼",
+   "벤치코트",
+   "벤치파카",
+   "다운코트",
+   "롱다운",
+   "롱파카",
+   "긴패딩",
+   "롱패딩"
+  ]
+ },
+ {
+  "id": "lightpad",
+  "slot": "outer",
+  "label": "경량패딩",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "zip",
+   "texture": "quilted"
+  },
+  "keywords": [
+   "유니클로울트라라이트다운",
+   "울트라라이트다운",
+   "경량패딩점퍼",
+   "패커블다운",
+   "초경량다운",
+   "초경량패딩",
+   "라이트다운",
+   "경량패딩",
+   "다운자켓",
+   "다운재킷",
+   "경량다운"
+  ]
+ },
+ {
+  "id": "vest_padding",
+  "slot": "outer",
+  "label": "패딩조끼",
+  "attrs": {
+   "sleeve": "none",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "quilted"
+  },
+  "keywords": [
+   "경량패딩베스트",
+   "경량다운베스트",
+   "구스다운조끼",
+   "경량패딩조끼",
+   "다운베스트",
+   "패딩베스트",
+   "덕다운조끼",
+   "패딩조끼",
+   "다운조끼"
+  ]
+ },
+ {
+  "id": "windbreaker",
+  "slot": "outer",
+  "label": "바람막이",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "plain"
+  },
+  "keywords": [
+   "나이키윈드러너",
+   "윈드브레이커",
+   "바람막이점퍼",
+   "아노락재킷",
+   "아노락자켓",
+   "방풍재킷",
+   "바람막이",
+   "윈드재킷",
+   "윈드러너",
+   "윈드자켓",
+   "방풍자켓",
+   "아노락"
+  ]
+ },
+ {
+  "id": "jacket",
+  "slot": "outer",
+  "label": "재킷",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "plain"
+  },
+  "keywords": [
+   "캐주얼자켓",
+   "캐주얼재킷",
+   "바시티재킷",
+   "바시티자켓",
+   "가을자켓",
+   "항공점퍼",
+   "MA-1",
+   "가을재킷",
+   "봄자켓",
+   "봄재킷",
+   "블루종",
+   "재킷",
+   "점퍼",
+   "자켓"
+  ]
+ },
+ {
+  "id": "denim_jacket",
+  "slot": "outer",
+  "label": "청재킷",
+  "attrs": {
+   "sleeve": "long",
+   "length": "waist",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "buttons",
+   "texture": "denim"
+  },
+  "keywords": [
+   "리바이스청자켓",
+   "리바이스트러커",
+   "트러커재킷",
+   "트러커자켓",
+   "데님자켓",
+   "데님재킷",
+   "데님점퍼",
+   "청재킷",
+   "청점퍼",
+   "청자켓",
+   "진자켓",
+   "진재킷"
+  ]
+ },
+ {
+  "id": "leather_jacket",
+  "slot": "outer",
+  "label": "가죽재킷",
+  "attrs": {
+   "sleeve": "long",
+   "length": "waist",
+   "fit": "slim",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "leather"
+  },
+  "keywords": [
+   "라이더가죽자켓",
+   "인조가죽자켓",
+   "인조가죽재킷",
+   "라이더자켓",
+   "바이커자켓",
+   "바이커재킷",
+   "라이더재킷",
+   "레더점퍼",
+   "가죽자켓",
+   "레더자켓",
+   "가죽재킷",
+   "레더재킷"
+  ]
+ },
+ {
+  "id": "blazer",
+  "slot": "outer",
+  "label": "블레이저",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "v",
+   "closure": "open",
+   "texture": "plain"
+  },
+  "keywords": [
+   "오버핏블레이저",
+   "테일러드자켓",
+   "블레이져자켓",
+   "테일러드재킷",
+   "블레이저재킷",
+   "수트재킷",
+   "정장재킷",
+   "정장자켓",
+   "싱글재킷",
+   "블레이져",
+   "블레이저",
+   "더블재킷"
+  ]
+ },
+ {
+  "id": "coat",
+  "slot": "outer",
+  "label": "코트",
+  "attrs": {
+   "sleeve": "long",
+   "length": "knee",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "open",
+   "texture": "plain"
+  },
+  "keywords": [
+   "캐시미어코트",
+   "발마칸코트",
+   "떡볶이코트",
+   "싱글코트",
+   "더플코트",
+   "하프코트",
+   "모직코트",
+   "더블코트",
+   "맥코트",
+   "울코트",
+   "피코트",
+   "롱코트",
+   "코트"
+  ]
+ },
+ {
+  "id": "trench",
+  "slot": "outer",
+  "label": "트렌치코트",
+  "attrs": {
+   "sleeve": "long",
+   "length": "knee",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "buttons",
+   "texture": "plain",
+   "belt": true
+  },
+  "keywords": [
+   "버버리트렌치코트",
+   "싱글트렌치코트",
+   "더블트렌치코트",
+   "바바리코트",
+   "트렌치재킷",
+   "트렌치자켓",
+   "트렌치코트",
+   "맥트렌치",
+   "트렌치",
+   "바바리"
+  ]
+ },
+ {
+  "id": "cardigan",
+  "slot": "outer",
+  "label": "가디건",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "v",
+   "closure": "open",
+   "texture": "rib"
+  },
+  "keywords": [
+   "스웨터가디건",
+   "브이넥가디건",
+   "오픈가디건",
+   "가디건재킷",
+   "니트카디건",
+   "버튼가디건",
+   "가디건자켓",
+   "니트가디건",
+   "단추가디건",
+   "가디건",
+   "카디건"
+  ]
+ },
+ {
+  "id": "fleece",
+  "slot": "outer",
+  "label": "플리스",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "zip",
+   "texture": "fleece"
+  },
+  "keywords": [
+   "파타고니아레트로X",
+   "뽀글이자켓",
+   "플리스자켓",
+   "플리스재킷",
+   "뽀글이재킷",
+   "후리스재킷",
+   "플리스집업",
+   "후리스자켓",
+   "양털점퍼",
+   "보아재킷",
+   "보아자켓",
+   "후리스",
+   "뽀글이",
+   "플리스"
+  ]
+ },
+ {
+  "id": "hood_zipup",
+  "slot": "outer",
+  "label": "후드집업",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "hood",
+   "closure": "zip",
+   "texture": "plain"
+  },
+  "keywords": [
+   "후드집업자켓",
+   "후드집업재킷",
+   "풀집업후디",
+   "풀집업후드",
+   "집업후드",
+   "집업후디",
+   "후드짚업",
+   "후드지퍼",
+   "후디집업",
+   "후드집업",
+   "집업"
+  ]
+ },
+ {
+  "id": "tee",
+  "slot": "top",
+  "label": "티셔츠",
+  "attrs": {
+   "sleeve": "short",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "유니클로티셔츠",
+   "라운드넥티셔츠",
+   "크루넥티셔츠",
+   "나이키티셔츠",
+   "반팔티셔츠",
+   "라운드티",
+   "티쪼가리",
+   "반팔티",
+   "티셔츠",
+   "무지티",
+   "반팔",
+   "티"
+  ]
+ },
+ {
+  "id": "longtee",
+  "slot": "top",
+  "label": "긴팔티",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "유니클로긴팔티",
+   "롱슬리브티셔츠",
+   "라운드긴팔티",
+   "베이직긴팔티",
+   "긴소매티셔츠",
+   "무지긴팔티",
+   "긴팔티셔츠",
+   "롱슬리브",
+   "긴팔티",
+   "긴팔",
+   "롱티"
+  ]
+ },
+ {
+  "id": "shirt",
+  "slot": "top",
+  "label": "셔츠",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "collar",
+   "closure": "buttons",
+   "texture": "plain"
+  },
+  "keywords": [
+   "옥스포드셔츠",
+   "옥스퍼드셔츠",
+   "셔츠블라우스",
+   "버튼다운셔츠",
+   "드레스셔츠",
+   "오버핏셔츠",
+   "캐주얼셔츠",
+   "와이셔츠",
+   "반팔셔츠",
+   "긴팔셔츠",
+   "남방",
+   "셔츠"
+  ]
+ },
+ {
+  "id": "blouse",
+  "slot": "top",
+  "label": "블라우스",
+  "attrs": {
+   "sleeve": "long",
+   "length": "waist",
+   "fit": "regular",
+   "neck": "v",
+   "closure": "buttons",
+   "texture": "plain"
+  },
+  "keywords": [
+   "오프숄더블라우스",
+   "시스루블라우스",
+   "퍼프블라우스",
+   "리본블라우스",
+   "여성블라우스",
+   "타이블라우스",
+   "시폰블라우스",
+   "셔링블라우스",
+   "프릴블라우스",
+   "블라우스",
+   "블라우즈"
+  ]
+ },
+ {
+  "id": "knit",
+  "slot": "top",
+  "label": "니트",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "rib"
+  },
+  "keywords": [
+   "캐시미어니트",
+   "니트스웨터",
+   "터틀넥니트",
+   "크루넥니트",
+   "오버핏니트",
+   "니트풀오버",
+   "브이넥니트",
+   "니트웨어",
+   "풀오버",
+   "꽈배기",
+   "울니트",
+   "스웨터",
+   "니트"
+  ]
+ },
+ {
+  "id": "sweatshirt",
+  "slot": "top",
+  "label": "맨투맨",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "wide",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "크루넥스웨트셔츠",
+   "나이키맨투맨",
+   "프린트맨투맨",
+   "오버핏맨투맨",
+   "챔피온맨투맨",
+   "맨투맨티셔츠",
+   "크루넥맨투맨",
+   "기모맨투맨",
+   "스웨트셔츠",
+   "스웻셔츠",
+   "맨투맨"
+  ]
+ },
+ {
+  "id": "hoodie",
+  "slot": "top",
+  "label": "후드티",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "wide",
+   "neck": "hood",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "후드스웨트셔츠",
+   "오버핏후드티",
+   "나이키후드티",
+   "챔피온후드티",
+   "후드티셔츠",
+   "풀오버후디",
+   "풀오버후드",
+   "기모후드티",
+   "후드맨투맨",
+   "후드티",
+   "후디"
+  ]
+ },
+ {
+  "id": "turtleneck",
+  "slot": "top",
+  "label": "터틀넥",
+  "attrs": {
+   "sleeve": "long",
+   "length": "hip",
+   "fit": "slim",
+   "neck": "turtle",
+   "closure": "none",
+   "texture": "rib"
+  },
+  "keywords": [
+   "터틀넥티셔츠",
+   "하이넥티셔츠",
+   "터틀넥니트",
+   "하이넥니트",
+   "모크넥니트",
+   "목폴라니트",
+   "폴라니트",
+   "터틀넥",
+   "목폴라",
+   "폴라티",
+   "반폴라"
+  ]
+ },
+ {
+  "id": "sleeveless",
+  "slot": "top",
+  "label": "민소매",
+  "attrs": {
+   "sleeve": "none",
+   "length": "hip",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "민소매티셔츠",
+   "슬리브리스탑",
+   "슬리브리스",
+   "런닝셔츠",
+   "민소매탑",
+   "나시티",
+   "민소매",
+   "탱크톱",
+   "캐미솔",
+   "탱크탑",
+   "나시"
+  ]
+ },
+ {
+  "id": "jeans",
+  "slot": "bottom",
+  "label": "청바지",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "regular",
+   "texture": "denim",
+   "detail": "none"
+  },
+  "keywords": [
+   "리바이스501청바지",
+   "리바이스501",
+   "스트레이트진",
+   "청바지바지",
+   "데님팬츠",
+   "스키니진",
+   "와이드진",
+   "진팬츠",
+   "청바지",
+   "연청",
+   "진청",
+   "진즈",
+   "데님",
+   "진"
+  ]
+ },
+ {
+  "id": "slacks",
+  "slot": "bottom",
+  "label": "슬랙스",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "regular",
+   "texture": "plain",
+   "detail": "crease"
+  },
+  "keywords": [
+   "세미와이드슬랙스",
+   "와이드슬랙스",
+   "테일러드팬츠",
+   "슬랙스바지",
+   "오피스팬츠",
+   "일자슬랙스",
+   "핀턱슬랙스",
+   "정장바지",
+   "수트팬츠",
+   "포멀팬츠",
+   "슬랙스"
+  ]
+ },
+ {
+  "id": "cargo",
+  "slot": "bottom",
+  "label": "카고팬츠",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "wide",
+   "texture": "plain",
+   "detail": "cargo"
+  },
+  "keywords": [
+   "나일론카고팬츠",
+   "와이드카고팬츠",
+   "유틸리티팬츠",
+   "카고조거팬츠",
+   "밀리터리팬츠",
+   "포켓팬츠",
+   "카고조거",
+   "카고바지",
+   "카고팬츠",
+   "카고"
+  ]
+ },
+ {
+  "id": "jogger",
+  "slot": "bottom",
+  "label": "조거팬츠",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "regular",
+   "texture": "plain",
+   "detail": "cuff"
+  },
+  "keywords": [
+   "아디다스조거팬츠",
+   "나이키조거팬츠",
+   "스웨트조거팬츠",
+   "스웻조거팬츠",
+   "밴딩조거팬츠",
+   "기모조거팬츠",
+   "트레이닝바지",
+   "트레이닝조거",
+   "조거바지",
+   "조거팬츠",
+   "츄리닝"
+  ]
+ },
+ {
+  "id": "hiking_pants",
+  "slot": "bottom",
+  "label": "등산바지",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "regular",
+   "texture": "plain",
+   "detail": "cargo"
+  },
+  "keywords": [
+   "코오롱스포츠등산바지",
+   "노스페이스등산바지",
+   "기능성등산바지",
+   "클라이밍팬츠",
+   "방수등산바지",
+   "아웃도어팬츠",
+   "하이킹팬츠",
+   "트레킹팬츠",
+   "등산팬츠",
+   "산행바지",
+   "등산바지"
+  ]
+ },
+ {
+  "id": "wide_pants",
+  "slot": "bottom",
+  "label": "와이드팬츠",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "wide",
+   "texture": "plain",
+   "detail": "none"
+  },
+  "keywords": [
+   "와이드데님팬츠",
+   "와이드슬랙스",
+   "와이드데님",
+   "와이드팬츠",
+   "루즈핏팬츠",
+   "오버핏바지",
+   "와이드바지",
+   "넓은바지",
+   "벌룬팬츠",
+   "통바지"
+  ]
+ },
+ {
+  "id": "leggings",
+  "slot": "bottom",
+  "label": "레깅스",
+  "attrs": {
+   "shape": "pants",
+   "length": "ankle",
+   "fit": "slim",
+   "texture": "plain",
+   "detail": "none"
+  },
+  "keywords": [
+   "룰루레몬레깅스",
+   "스포츠레깅스",
+   "나이키레깅스",
+   "레깅스바지",
+   "타이츠팬츠",
+   "요가레깅스",
+   "운동레깅스",
+   "러닝타이츠",
+   "기모레깅스",
+   "타이츠",
+   "레깅스"
+  ]
+ },
+ {
+  "id": "shorts",
+  "slot": "bottom",
+  "label": "반바지",
+  "attrs": {
+   "shape": "pants",
+   "length": "thigh",
+   "fit": "regular",
+   "texture": "plain",
+   "detail": "none"
+  },
+  "keywords": [
+   "트레이닝반바지",
+   "카고반바지",
+   "반바지팬츠",
+   "버뮤다팬츠",
+   "버뮤다쇼츠",
+   "짧은바지",
+   "데님쇼츠",
+   "청반바지",
+   "러닝쇼츠",
+   "반바지",
+   "숏팬츠",
+   "쇼츠"
+  ]
+ },
+ {
+  "id": "skirt_mini",
+  "slot": "bottom",
+  "label": "미니스커트",
+  "attrs": {
+   "shape": "skirt",
+   "length": "thigh",
+   "fit": "regular",
+   "texture": "plain",
+   "detail": "none"
+  },
+  "keywords": [
+   "A라인미니스커트",
+   "플리츠미니스커트",
+   "미니데님스커트",
+   "미니기장스커트",
+   "랩미니스커트",
+   "테니스스커트",
+   "플리츠미니",
+   "미니스커트",
+   "미니치마",
+   "짧은치마",
+   "스커트",
+   "치마"
+  ]
+ },
+ {
+  "id": "skirt_long",
+  "slot": "bottom",
+  "label": "롱스커트",
+  "attrs": {
+   "shape": "skirt",
+   "length": "ankle",
+   "fit": "wide",
+   "texture": "plain",
+   "detail": "none"
+  },
+  "keywords": [
+   "A라인롱스커트",
+   "플리츠롱스커트",
+   "데님롱스커트",
+   "롱기장스커트",
+   "맥시스커트",
+   "랩롱스커트",
+   "롱스커트",
+   "긴치마",
+   "롱치마"
+  ]
+ },
+ {
+  "id": "dress_mini",
+  "slot": "dress",
+  "label": "미니원피스",
+  "attrs": {
+   "sleeve": "short",
+   "length": "thigh",
+   "fit": "regular",
+   "neck": "crew",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "미니기장원피스",
+   "니트미니원피스",
+   "슬립미니원피스",
+   "랩미니원피스",
+   "미니드레스",
+   "미니원피스",
+   "셔츠원피스",
+   "짧은원피스",
+   "숏원피스"
+  ]
+ },
+ {
+  "id": "dress_long",
+  "slot": "dress",
+  "label": "롱원피스",
+  "attrs": {
+   "sleeve": "short",
+   "length": "ankle",
+   "fit": "wide",
+   "neck": "v",
+   "closure": "none",
+   "texture": "plain"
+  },
+  "keywords": [
+   "셔츠롱원피스",
+   "롱기장원피스",
+   "니트롱원피스",
+   "슬립롱원피스",
+   "맥시드레스",
+   "랩롱원피스",
+   "맥시원피스",
+   "긴원피스",
+   "롱드레스",
+   "롱원피스",
+   "드레스",
+   "원피스"
+  ]
+ },
+ {
+  "id": "sneakers",
+  "slot": "shoes",
+  "label": "운동화",
+  "attrs": {
+   "style": "sneaker"
+  },
+  "keywords": [
+   "뉴발란스530",
+   "컨버스척테일러",
+   "뉴발란스574",
+   "나이키에어포스",
+   "아디다스가젤",
+   "캐주얼운동화",
+   "반스올드스쿨",
+   "아디다스삼바",
+   "에어포스1",
+   "스니커즈",
+   "뉴발란스",
+   "캔버스화",
+   "컨버스",
+   "운동화",
+   "반스",
+   "에포",
+   "단화",
+   "삼바",
+   "뉴발"
+  ]
+ },
+ {
+  "id": "running",
+  "slot": "shoes",
+  "label": "러닝화",
+  "attrs": {
+   "style": "runner"
+  },
+  "keywords": [
+   "나이키페가수스",
+   "아식스젤카야노",
+   "운동용러닝화",
+   "호카클리프톤",
+   "트레이닝화",
+   "마라톤화",
+   "러닝슈즈",
+   "온러닝화",
+   "런닝슈즈",
+   "러닝화",
+   "런닝화",
+   "조깅화"
+  ]
+ },
+ {
+  "id": "boots",
+  "slot": "shoes",
+  "label": "부츠",
+  "attrs": {
+   "style": "boot"
+  },
+  "keywords": [
+   "닥터마틴1460",
+   "레이스업부츠",
+   "웨스턴부츠",
+   "앵클부츠",
+   "미들부츠",
+   "레인부츠",
+   "어그부츠",
+   "닥터마틴",
+   "첼시부츠",
+   "워커부츠",
+   "롱부츠",
+   "부츠",
+   "워커"
+  ]
+ },
+ {
+  "id": "trekking",
+  "slot": "shoes",
+  "label": "트레킹화",
+  "attrs": {
+   "style": "trek"
+  },
+  "keywords": [
+   "노스페이스등산화",
+   "살로몬트레킹화",
+   "살로몬XT-6",
+   "컬럼비아등산화",
+   "고어텍스등산화",
+   "아웃도어화",
+   "하이킹부츠",
+   "트레킹부츠",
+   "하이킹화",
+   "트레킹화",
+   "산악화",
+   "등산화"
+  ]
+ },
+ {
+  "id": "sandals",
+  "slot": "shoes",
+  "label": "샌들",
+  "attrs": {
+   "style": "sandal"
+  },
+  "keywords": [
+   "글래디에이터샌들",
+   "버켄스탁아리조나",
+   "플랫폼샌들",
+   "스포츠샌들",
+   "스트랩샌들",
+   "버켄스탁",
+   "플립플롭",
+   "테바샌들",
+   "킨샌들",
+   "쪼리",
+   "샌들",
+   "샌달"
+  ]
+ },
+ {
+  "id": "slippers",
+  "slot": "shoes",
+  "label": "슬리퍼",
+  "attrs": {
+   "style": "slipper"
+  },
+  "keywords": [
+   "아디다스슬리퍼",
+   "슬라이드슬리퍼",
+   "나이키슬리퍼",
+   "실내용슬리퍼",
+   "실외슬리퍼",
+   "우포스쪼리",
+   "삼선슬리퍼",
+   "슬라이드",
+   "슬리퍼",
+   "실내화",
+   "욕실화"
+  ]
+ },
+ {
+  "id": "loafers",
+  "slot": "shoes",
+  "label": "로퍼",
+  "attrs": {
+   "style": "loafer"
+  },
+  "keywords": [
+   "닥터마틴아드리안",
+   "드라이빙슈즈",
+   "닥터마틴로퍼",
+   "클래식로퍼",
+   "구찌로퍼",
+   "태슬로퍼",
+   "구두로퍼",
+   "가죽로퍼",
+   "페니로퍼",
+   "로퍼화",
+   "로퍼"
+  ]
+ },
+ {
+  "id": "clogs",
+  "slot": "shoes",
+  "label": "클로그",
+  "attrs": {
+   "style": "clog"
+  },
+  "keywords": [
+   "크록스클래식클로그",
+   "버켄스탁보스턴",
+   "크록스바야밴드",
+   "크록스플랫폼",
+   "보스턴클로그",
+   "클로그샌들",
+   "클로그슈즈",
+   "크록스",
+   "클로그",
+   "나막신",
+   "뮬슈즈",
+   "뮬"
+  ]
+ },
+ {
+  "id": "heels",
+  "slot": "shoes",
+  "label": "구두·힐",
+  "attrs": {
+   "style": "heel"
+  },
+  "keywords": [
+   "스틸레토힐",
+   "메리제인힐",
+   "스트랩힐",
+   "스틸레토",
+   "펌프스힐",
+   "플랫폼힐",
+   "블록힐",
+   "하이힐",
+   "펌프스",
+   "미들힐",
+   "구두",
+   "킬힐",
+   "힐"
+  ]
+ },
+ {
+  "id": "cap",
+  "slot": "hat",
+  "label": "캡모자",
+  "attrs": {
+   "style": "cap"
+  },
+  "keywords": [
+   "뉴에라9FORTY",
+   "뉴에라볼캡",
+   "베이스볼캡",
+   "나이키볼캡",
+   "스포츠캡",
+   "야구모자",
+   "트러커캡",
+   "캠프캡",
+   "캡모자",
+   "스냅백",
+   "볼캡",
+   "모자",
+   "캡"
+  ]
+ },
+ {
+  "id": "beanie",
+  "slot": "hat",
+  "label": "비니",
+  "attrs": {
+   "style": "beanie"
+  },
+  "keywords": [
+   "칼하트비니",
+   "접이식비니",
+   "니트모자",
+   "겨울비니",
+   "니트비니",
+   "스키비니",
+   "골지비니",
+   "털모자",
+   "롱비니",
+   "숏비니",
+   "비니"
+  ]
+ },
+ {
+  "id": "bucket",
+  "slot": "hat",
+  "label": "버킷햇",
+  "attrs": {
+   "style": "bucket"
+  },
+  "keywords": [
+   "노스페이스버킷햇",
+   "나일론버킷햇",
+   "나이키버킷햇",
+   "코튼버킷햇",
+   "양면버킷햇",
+   "벙거지모자",
+   "사파리모자",
+   "버킷해트",
+   "버킷모자",
+   "벙거지",
+   "버킷햇"
+  ]
+ },
+ {
+  "id": "scarf",
+  "slot": "acc",
+  "label": "머플러",
+  "attrs": {
+   "style": "scarf"
+  },
+  "keywords": [
+   "캐시미어머플러",
+   "방한머플러",
+   "니트머플러",
+   "체크머플러",
+   "롱머플러",
+   "울머플러",
+   "스카프",
+   "목도리",
+   "넥워머",
+   "머플러",
+   "숄"
+  ]
+ },
+ {
+  "id": "crossbag",
+  "slot": "acc",
+  "label": "크로스백",
+  "attrs": {
+   "style": "crossbag"
+  },
+  "keywords": [
+   "핸드폰크로스백",
+   "미니크로스백",
+   "구찌크로스백",
+   "코치크로스백",
+   "숄더크로스백",
+   "크로스바디백",
+   "크로스백",
+   "메신저백",
+   "슬링백"
+  ]
+ },
+ {
+  "id": "backpack",
+  "slot": "acc",
+  "label": "백팩",
+  "attrs": {
+   "style": "backpack"
+  },
+  "keywords": [
+   "노스페이스백팩",
+   "잔스포츠백팩",
+   "여행용백팩",
+   "노트북백팩",
+   "롤탑백팩",
+   "백팩가방",
+   "칸켄백팩",
+   "미니백팩",
+   "등산배낭",
+   "데이팩",
+   "책가방",
+   "배낭",
+   "백팩"
+  ]
+ },
+ {
+  "id": "sunglasses",
+  "slot": "acc",
+  "label": "선글라스",
+  "attrs": {
+   "style": "sunglasses"
+  },
+  "keywords": [
+   "레이밴웨이페어러",
+   "레이밴클럽마스터",
+   "스포츠선글라스",
+   "오클리선글라스",
+   "캣아이선글라스",
+   "편광선글라스",
+   "보잉선글라스",
+   "패션선글라스",
+   "선글래스",
+   "선글라스",
+   "썬글라스",
+   "레이밴",
+   "선글"
+  ]
+ }
+]
