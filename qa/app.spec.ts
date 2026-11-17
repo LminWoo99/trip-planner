@@ -637,6 +637,63 @@ test.describe("오프라인", () => {
   });
 });
 
+test.describe("초대", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+
+  test("방장이 링크를 보내면 받은 사람이 가입하고 요청하고, 방장이 승인해야 여행이 보인다", async ({ page, browser }, info) => {
+    test.skip(info.project.name !== "iphone", "creates accounts; run once");
+    // owner makes a separate trip (the shared Sapa trip must keep its two members for other tests)
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    await page.goto("/");
+    await page.getByRole("button", { name: "여행 목록" }).click();
+    await page.getByRole("button", { name: "새 여행" }).click();
+    await page.locator("#trip-title").fill("QA 초대 여행");
+    await page.locator("#trip-start").fill(iso(new Date(Date.now() + 5 * 86_400_000)));
+    await page.locator("#trip-end").fill(iso(new Date(Date.now() + 6 * 86_400_000)));
+    await page.getByRole("button", { name: "만들기" }).click();
+    await expect(page.getByRole("heading", { name: "QA 초대 여행" })).toBeVisible();
+    await page.getByRole("button", { name: "더보기", exact: true }).click();
+    await page.getByRole("button", { name: /^일행/ }).click();
+    const sheet = page.getByRole("dialog", { name: "일행" });
+    await sheet.getByRole("button", { name: "초대 링크 만들기" }).click();
+    const url = (await sheet.locator(".link-url span").innerText()).trim();
+    const token = url.split("/j/")[1];
+    expect(token).toMatch(/^[A-Za-z0-9]{24}$/);
+    await shot(page, "92-members-link");
+
+    // invitee opens it, signs up, asks to join
+    const ctx = await browser.newContext({ ...info.project.use, storageState: { cookies: [], origins: [] } });
+    const guest = await ctx.newPage();
+    await guest.goto(`/j/${token}`);
+    await expect(guest.getByText("가입하면 초대받은 여행에 참여를 요청할 수 있어요.")).toBeVisible();
+    await guest.locator("#su-id").fill("qa_guest");
+    await guest.locator("#su-name").fill("지수");
+    await guest.locator("#su-pw").fill("trip2026!");
+    await guest.getByRole("button", { name: "가입하기", exact: true }).click();
+    await expect(guest.getByRole("heading", { name: "QA 초대 여행" })).toBeVisible();
+    await guest.getByRole("button", { name: "참여 요청 보내기" }).click();
+    await expect(guest.getByText("방장 승인을 기다리고 있어요")).toBeVisible();
+    await shot(guest, "93-invitee-waiting");
+    // not a member yet: the list shows it as waiting, not openable
+    await guest.getByRole("button", { name: "여행 목록으로" }).click();
+    await expect(guest.getByLabel("QA 초대 여행, 방장 승인 기다리는 중")).toBeVisible();
+
+    // owner approves
+    await sheet.getByRole("button", { name: "닫기" }).click();
+    await page.getByRole("button", { name: /^일행/ }).click();
+    await expect(sheet.getByText("지수")).toBeVisible();
+    await shot(page, "94-members-request");
+    await sheet.getByRole("button", { name: "승인" }).click();
+    await expect(sheet.getByText("함께하는 일행 2명")).toBeVisible();
+
+    // invitee now sees and opens the trip
+    await guest.reload();
+    await guest.getByRole("button", { name: /QA 초대 여행/ }).click();
+    await expect(guest.getByRole("button", { name: /^1일차/ })).toBeVisible();
+    await ctx.close();
+  });
+});
+
 test.describe("관리자", () => {
   test.use({ storageState: "qa/.auth/minu.json" });
   test("관리자는 /admin에서 가입자·권한·접속 기록을 보고 권한을 켜고 끌 수 있다", async ({ page }, info) => {
