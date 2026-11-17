@@ -1,5 +1,7 @@
 // pm2 process for the home server VM. Secrets live in .env (not in git):
-//   TRIP_GATE_CODE=MMDD
+//   OPENAI_API_KEY=...     (AI features; server-side only)
+//   OPENAI_MODEL=...       (model id)
+//   ACCOUNT_SETUP=...      (one-time: logins for existing people, read by a migration; remove after deploy)
 //   PB_HTTP=0.0.0.0:8090   (optional; the Cloudflare Tunnel on the Mac reaches <vm>.orb.local:8090)
 const fs = require("node:fs");
 const path = require("node:path");
@@ -21,7 +23,7 @@ module.exports = {
       script: "./pocketbase",
       args: `serve --http=${env.PB_HTTP || "0.0.0.0:8090"} --dir=./pb_data --hooksDir=./pb_hooks --migrationsDir=./pb_migrations --publicDir=./pb_public`,
       interpreter: "none",
-      env: { TRIP_GATE_CODE: env.TRIP_GATE_CODE || "" },
+      env: { OPENAI_API_KEY: env.OPENAI_API_KEY || "", OPENAI_MODEL: env.OPENAI_MODEL || "", ACCOUNT_SETUP: env.ACCOUNT_SETUP || "" },
       autorestart: true,
       max_restarts: 20,
       restart_delay: 2000,
