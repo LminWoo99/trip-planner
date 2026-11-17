@@ -7,14 +7,20 @@ export function useForecast(city: string): { spots: Spot[]; forecast: Forecast |
   const [forecast, setForecast] = useState<Forecast | null>(() => cachedForecast(spotsForCity(city)));
   useEffect(() => {
     let alive = true;
-    void resolveSpots(city).then(async (found) => {
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const load = async (again: boolean) => {
+      const found = await resolveSpots(city);
       if (!alive) return;
       setSpots(found);
       setForecast(cachedForecast(found));
       const fresh = await fetchForecast(found);
-      if (alive) setForecast(fresh);
-    });
-    return () => { alive = false; };
+      if (!alive) return;
+      setForecast(fresh);
+      // a slow or dropped connection: try once more shortly
+      if ((!found.length || !fresh) && again && city && navigator.onLine) retry = setTimeout(() => void load(false), 3000);
+    };
+    void load(true);
+    return () => { alive = false; clearTimeout(retry); };
   }, [city]);
   return { spots, forecast };
 }

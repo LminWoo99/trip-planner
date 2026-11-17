@@ -67,6 +67,13 @@ routerAdd("GET", "/api/admin/overview", (e) => {
   const events = e.app.findRecordsByFilter("auth_events", "", "-created", 100, 0);
   const names = {};
   for (const u of users) names[u.id] = u.getString("name");
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const aiUsage = {};
+  for (const k of ["plan", "clothes", "coord", "avatar"]) {
+    aiUsage[k] = e.app.countRecords("ai_usage", $dbx.exp("kind = {:k} AND created >= {:s}", { k, s: monthStart.toISOString().replace("T", " ") }));
+  }
   return e.json(200, {
     users: users.map((u) => ({
       id: u.id,
@@ -78,6 +85,7 @@ routerAdd("GET", "/api/admin/overview", (e) => {
       lastSeen: u.getString("lastSeen"),
       trips: tripCount[u.id] || 0,
     })),
+    aiUsage,
     events: events.map((ev) => ({
       id: ev.id,
       kind: ev.getString("kind"),

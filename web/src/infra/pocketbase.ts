@@ -1,5 +1,6 @@
 import PocketBase, { type RecordModel } from "pocketbase";
 import { citiesOf, type TripSummary } from "../domain/trips";
+import type { Garment, Look } from "../domain/outfit";
 import type {
   Booking, BranchKey, ChecklistItem, Currency, Day, Expense, Group, Item, Member, Note, Place, Trip, TripSnapshot,
 } from "../domain/types";
@@ -115,12 +116,61 @@ export const decideRequest = (id: string, approve: boolean) => pb.send(`/api/req
 export const myInvites = (): Promise<{ pending: { tripId: string; title: string }[]; waiting: Record<string, number> }> => pb.send("/api/me/invites", { method: "GET" });
 export const inviteUrl = (token: string) => `${location.origin}/j/${token}`;
 
+// ---- outfits ----
+
+export interface OutfitPerson { user: string; name: string; avatar: Look | null }
+export interface OutfitRec { id: string; day: string; user: string; items: Garment[]; likedBy: string[] }
+
+const toOutfit = (r: RecordModel): OutfitRec => ({ id: r.id, day: r.day, user: r.user, items: Array.isArray(r.items) ? r.items : [], likedBy: Array.isArray(r.likedBy) ? r.likedBy : [] });
+
+export const outfitPeople = (tripId: string): Promise<OutfitPerson[]> => pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" });
+export const saveLook = (look: Look, user?: string) => pb.send("/api/avatar", { method: "POST", body: { look, user } });
+export const listOutfits = async (tripId: string): Promise<OutfitRec[]> =>
+  (await pb.collection("outfits").getFullList({ filter: pb.filter("trip = {:t}", { t: tripId }) })).map(toOutfit);
+export async function saveOutfit(tripId: string, day: string, existing: OutfitRec | null, data: { items?: Garment[]; likedBy?: string[] }): Promise<OutfitRec> {
+  const r = existing
+    ? await pb.collection("outfits").update(existing.id, data)
+    : await pb.collection("outfits").create({ trip: tripId, day, user: pb.authStore.record?.id, items: [], likedBy: [], ...data });
+  return toOutfit(r);
+}
+export async function subscribeOutfits(tripId: string, onChange: () => void): Promise<() => void> {
+  return pb.collection("outfits").subscribe("*", onChange, { filter: pb.filter("trip = {:t}", { t: tripId }) });
+}
+
+// ---- AI ----
+
+export interface PlanItem { time: string; title: string; cat: string; place: string; memo: string; placeId?: string; lat?: number; lng?: number }
+export interface AiPerson { position: number; body: "m" | "f"; build: Look["build"]; hair: Look["hair"]; hairColor: string; skin: string; summary: string }
+
+export const aiAvatar = (image: string): Promise<{ people: AiPerson[] }> => pb.send("/api/ai/avatar", { method: "POST", body: { image } });
+export const aiClothes = (lines: string[], types: string[], colors: string[]): Promise<{ items: { text: string; type: string; color: string }[] }> =>
+  pb.send("/api/ai/clothes", { method: "POST", body: { lines, types, colors } });
+export const aiCoord = (day: string, weather: string): Promise<{ text: string }> => pb.send("/api/ai/coord", { method: "POST", body: { day, weather } });
+export const aiPlan = (tripId: string, text: string): Promise<{ days: { n: number; items: PlanItem[] }[] }> => pb.send("/api/ai/plan", { method: "POST", body: { tripId, text } });
+export const applyPlan = (tripId: string, mode: "append" | "replace", days: { day: string; items: PlanItem[] }[]): Promise<{ added: number }> =>
+  pb.send(`/api/trips/${tripId}/apply-plan`, { method: "POST", body: { mode, days } });
+
+// ---- restore points ----
+
+export interface Snapshot { id: string; by: string; label: string; created: string; days: { day: string; items: number; groups: number }[] }
+export async function listSnapshots(tripId: string): Promise<Snapshot[]> {
+  const list = await pb.collection("trip_snapshots").getList(1, 30, { filter: pb.filter("trip = {:t}", { t: tripId }), sort: "-created" });
+  return list.items.map((r) => ({
+    id: r.id, by: r.by, label: r.label, created: r.created,
+    days: ((r.data?.days ?? []) as { day: string; items: unknown[]; groups: unknown[] }[]).map((d) => ({ day: d.day, items: d.items.length, groups: d.groups.length })),
+  }));
+}
+export const restoreSnapshot = (id: string) => pb.send(`/api/snapshots/${id}/restore`, { method: "POST" });
+export async function subscribeSnapshots(tripId: string, onNew: (s: { by: string; label: string }) => void): Promise<() => void> {
+  return pb.collection("trip_snapshots").subscribe("*", (e) => { if (e.action === "create") onNew({ by: e.record.by, label: e.record.label }); }, { filter: pb.filter("trip = {:t}", { t: tripId }) });
+}
+
 // ---- admin ----
 
 export interface AdminUser { id: string; username: string; name: string; role: string; perms: Perm[]; created: string; lastSeen: string; trips: number }
 export interface AuthEvent { id: string; kind: "login_ok" | "login_fail" | "signup"; user: string; name: string; username: string; ip: string; country: string; ua: string; created: string }
 
-export const adminOverview = (): Promise<{ users: AdminUser[]; events: AuthEvent[] }> => pb.send("/api/admin/overview", { method: "GET" });
+export const adminOverview = (): Promise<{ users: AdminUser[]; events: AuthEvent[]; aiUsage?: Record<"plan" | "clothes" | "coord" | "avatar", number> }> => pb.send("/api/admin/overview", { method: "GET" });
 export const setPerms = (id: string, perms: Perm[]) => pb.send(`/api/admin/users/${id}/perms`, { method: "POST", body: { perms } });
 
 // ---- trip list ----

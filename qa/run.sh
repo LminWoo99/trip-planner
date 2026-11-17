@@ -8,9 +8,14 @@ SEEDED="${QA_SEEDED_DB:-/tmp/pb_seeded}"
 pkill -f "pocketbase serve --http=127.0.0.1:8090" || true
 rm -rf /tmp/pb_qa && cp -R "$SEEDED" /tmp/pb_qa
 npm run build >/dev/null
-ACCOUNT_SETUP="minu@trip.local:qa_minu:admin:qa-pass-11,ryeojin@trip.local:qa_ryeojin:member:qa-pass-22" ./pocketbase serve --http=127.0.0.1:8090 --dir=/tmp/pb_qa --hooksDir=./pb_hooks --migrationsDir=./pb_migrations --publicDir=./pb_public >/tmp/pb_qa.log 2>&1 &
+pkill -f "qa/fake-openai.mjs" || true
+node qa/fake-openai.mjs &
+FAKE_PID=$!
+ACCOUNT_SETUP="minu@trip.local:qa_minu:admin:qa-pass-11,ryeojin@trip.local:qa_ryeojin:member:qa-pass-22" \
+OPENAI_API_KEY=fake OPENAI_BASE_URL=http://127.0.0.1:8099 \
+./pocketbase serve --http=127.0.0.1:8090 --dir=/tmp/pb_qa --hooksDir=./pb_hooks --migrationsDir=./pb_migrations --publicDir=./pb_public >/tmp/pb_qa.log 2>&1 &
 PB_PID=$!
-trap 'kill $PB_PID 2>/dev/null || true' EXIT
+trap 'kill $PB_PID $FAKE_PID 2>/dev/null || true' EXIT
 for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8090/api/health >/dev/null && break; sleep 0.3; done
 mkdir -p qa-screens
 npx playwright test "$@"
