@@ -54,7 +54,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .fab .icon { width: 24px; height: 24px; }
 
 /* ---------- day pills ---------- */
-.days { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 12px; scrollbar-width: none; border-bottom: 1px solid var(--line); flex: none; }
+.days-bar { display: flex; align-items: flex-start; border-bottom: 1px solid var(--line); flex: none; }
+.days { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; padding: 4px 32px 12px 16px; scrollbar-width: none;
+  /* fade at the right edge: more days are hidden there */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.days-edit { margin: 4px 16px 12px 0; }
 .days::-webkit-scrollbar { display: none; }
 .pill { flex: none; height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--line); background: var(--bg); font-size: 15px; font-weight: 600; color: var(--ink2); display: flex; align-items: center; gap: 4px; }
 .pill[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }

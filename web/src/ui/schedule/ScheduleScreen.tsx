@@ -56,6 +56,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [leg, setLeg] = useState<{ from: string; to: string } | null>(null);
   const [justPicked, setJustPicked] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const pills = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
 
   const day = days[Math.min(dayIdx, days.length - 1)];
@@ -64,6 +65,11 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const [ticketOpen, setTicketOpen] = useState<Booking | null>(null);
   const { spots, forecast } = useForecast(day?.city ?? "");
   useEffect(() => { onSelectionBar(edit && selected.size > 0); }, [edit, selected, onSelectionBar]);
+  // keep the chosen day visible in the scrolling row (e.g. today on a long trip)
+  useEffect(() => {
+    const el = pills.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [dayIdx]);
   useEffect(() => () => onSelectionBar(false), [onSelectionBar]);
 
   const entries = useMemo(() => (snapshot && day ? buildDay(day.id, snapshot.items, snapshot.groups) : []), [snapshot, day]);
@@ -182,13 +188,16 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
 
   return (
     <>
-      <div className="days" role="toolbar" aria-label="날짜">
+      <div className="days-bar">
+      <div className="days" role="toolbar" aria-label="날짜" ref={pills}>
         {days.map((d, i) => (
           <button key={d.id} className="pill" aria-pressed={i === dayIdx} onClick={() => goDay(i)} aria-label={`${d.n}일차 ${shortDay(d.date)}${today.day?.id === d.id ? " 오늘" : ""}`}>{today.day?.id === d.id && <span className="today-dot" />}Day {d.n}</button>
         ))}
-        <button className={`pill ${edit ? "outline" : ""}`} onClick={() => { setEdit(!edit); setSelected(new Set()); }}>
-          {edit ? <><Check className="icon" />완료</> : <><ArrowUpDown className="icon" />편집</>}
-        </button>
+      </div>
+      {/* pinned so it stays reachable however many days the trip has */}
+      <button className={`pill days-edit ${edit ? "outline" : ""}`} onClick={() => { setEdit(!edit); setSelected(new Set()); }}>
+        {edit ? <><Check className="icon" />완료</> : <><ArrowUpDown className="icon" />편집</>}
+      </button>
       </div>
       <div
         ref={scroller}
