@@ -109,7 +109,7 @@ export function AdminScreen() {
             <b>이번 달 AI 사용</b>
             <table>
               <tbody>
-                {([["plan", "일정 나누기"], ["clothes", "옷 알아듣기"], ["coord", "코디 한마디"], ["avatar", "사진으로 아바타"]] as const).map(([k, n]) => (
+                {([["plan", "일정 나누기"], ["clothes", "옷 알아듣기"], ["avatar", "사진 읽기"], ["face", "얼굴 만들기"], ["render", "전신 그림"]] as const).map(([k, n]) => (
                   <tr key={k}><td>{n}</td><td className="num">{data.aiUsage![k]}번</td></tr>
                 ))}
               </tbody>

@@ -14,7 +14,6 @@ const answers = {
     const lines = JSON.parse(/옷: (\[.*\])/.exec(body.input[0].content[0].text)[1]);
     return { items: lines.map((t) => ({ text: t, slot: "top", label: "꽈배기 스웨터", color: "#e9c34a", sleeve: "long", length: "hip", fit: "wide", neck: "crew", closure: "none", texture: "rib", pattern: "none", shape: "-", detail: "-", style: "-" })) };
   },
-  coord: () => ({ text: "비 소식이 있으니 방수 신발이 좋아요. 둘 다 어두운 하의라 톤이 잘 맞아요." }),
   people: () => ({ people: [
     { position: 1, body: "m", build: "avg", hairStyle: "comma", glasses: "round", hairColor: "#1f1b1a", skin: "#f3d3bd", summary: "남자, 보통 체격, 쉼표머리, 동그란 안경" },
     { position: 2, body: "f", build: "slim", hairStyle: "hush", glasses: "none", hairColor: "#3b2a22", skin: "#f6dcc8", summary: "여자, 마른 체격, 허쉬컷" },

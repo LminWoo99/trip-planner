@@ -129,7 +129,7 @@ routerAdd("GET", "/api/outfits/people", (e) => {
   for (const m of e.app.findRecordsByFilter("trip_members", "trip = {:t}", "", 0, 0, { t: tripId })) {
     const u = e.app.findRecordById("users", m.getString("user"));
     if (!(u.get("perms") || []).includes("outfits")) continue;
-    people.push({ user: u.id, name: m.getString("displayName"), avatar: u.get("look") || null, face: u.getString("face") });
+    people.push({ user: u.id, member: m.id, name: m.getString("displayName"), avatar: u.get("look") || null, face: u.getString("face"), base: m.getString("base") });
   }
   return e.json(200, people);
 }, $apis.requireAuth("users"));
@@ -227,28 +227,6 @@ routerAdd("POST", "/api/ai/clothes", (e) => {
   return e.json(200, { items: result.items || [] });
 }, $apis.requireAuth("users"));
 
-routerAdd("POST", "/api/ai/coord", (e) => {
-  const { requirePerm, useQuota, askJson } = require(`${__hooks}/lib/ai.js`);
-  requirePerm(e, "ai");
-  requirePerm(e, "outfits");
-  const body = e.requestInfo().body;
-  const dayId = String(body.day || "");
-  const day = e.app.findRecordById("days", dayId);
-  try { e.app.findFirstRecordByFilter("trip_members", "trip = {:t} && user = {:u}", { t: day.getString("trip"), u: e.auth.id }); } catch (_) { throw new ForbiddenError("이 여행의 일행만 할 수 있어요."); }
-  const looks = e.app.findRecordsByFilter("outfits", "day = {:d}", "", 0, 0, { d: dayId }).map((o) => {
-    const m = e.app.findFirstRecordByFilter("trip_members", "trip = {:t} && user = {:u}", { t: day.getString("trip"), u: o.getString("user") });
-    return { who: m.getString("displayName"), clothes: (o.get("items") || []).map((i) => i.text) };
-  });
-  if (!looks.length) throw new BadRequestError("아직 정한 코디가 없어요.");
-  useQuota(e.app, e.auth.id, "coord");
-  const result = askJson(
-    "커플 여행 코디를 보고 두세 문장으로 짧게 조언해. 날씨에 맞는지(비, 추위), 둘의 색이 잘 어울리는지만 말하고, 바꾸면 좋을 것 하나를 구체적으로 제안해. 다정하고 담백한 존댓말로.",
-    [{ type: "input_text", text: `${day.getInt("n")}일차 ${day.getString("city")} 일정 "${day.getString("title")}". 날씨: ${String(body.weather || "모름").slice(0, 200)}. 코디: ${JSON.stringify(looks)}` }],
-    "coord", { type: "object", additionalProperties: false, required: ["text"], properties: { text: { type: "string" } } },
-  );
-  return e.json(200, { text: String(result.text || "").slice(0, 400) });
-}, $apis.requireAuth("users"));
-
 cronAdd("ai_usage_cleanup", "40 4 * * *", () => {
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
   $app.db().newQuery("DELETE FROM ai_usage WHERE created < {:c}").bind({ c: cutoff }).execute();
@@ -287,13 +265,42 @@ routerAdd("POST", "/api/avatar/face", (e) => {
   const u = personYouCanEdit(e, String(body.user || e.auth.id));
   u.set("face", fileFromDataUrl(picture(body.image), "face.webp"));
   e.app.saveNoValidate(u);
+  // plain-clothes drawings were made from the old face
+  for (const m of e.app.findRecordsByFilter("trip_members", "user = {:u} && base != ''", "", 0, 0, { u: u.id })) {
+    m.set("base", null);
+    e.app.saveNoValidate(m);
+  }
   return e.json(200, { face: u.getString("face") });
+}, $apis.requireAuth("users"));
+
+/** Draws someone in plain clothes for a trip; shown on days without an outfit drawing. */
+routerAdd("POST", "/api/ai/base", (e) => {
+  const { requirePerm, useQuota } = require(`${__hooks}/lib/ai.js`);
+  const { editImage, fileFromDataUrl, recordFileDataUrl, fullBodyPrompt } = require(`${__hooks}/lib/image.js`);
+  requirePerm(e, "ai");
+  requirePerm(e, "outfits");
+  const body = e.requestInfo().body;
+  let member;
+  try { member = e.app.findFirstRecordByFilter("trip_members", "trip = {:t} && user = {:u}", { t: String(body.trip || ""), u: String(body.user || "") }); } catch (_) { throw new NotFoundError("일행을 찾지 못했어요."); }
+  try { e.app.findFirstRecordByFilter("trip_members", "trip = {:t} && user = {:u}", { t: member.getString("trip"), u: e.auth.id }); } catch (_) { throw new ForbiddenError("이 여행의 일행만 그릴 수 있어요."); }
+  // already drawn (e.g. by the other phone a moment ago)
+  if (member.getString("base")) return e.json(200, { base: member.getString("base") });
+  const person = e.app.findRecordById("users", member.getString("user"));
+  const face = recordFileDataUrl(e.app, person, "face");
+  if (!face) throw new BadRequestError("얼굴을 먼저 만들어 주세요.");
+  useQuota(e.app, e.auth.id, "render");
+  // route handlers run on their own, so the plain outfit is written here
+  const plain = "plain white crew-neck t-shirt, light blue straight jeans, white sneakers";
+  const image = editImage([face], fullBodyPrompt(JSON.parse(person.getString("look") || "{}") || {}, plain), "1024x1536");
+  member.set("base", fileFromDataUrl(image, "base.webp"));
+  e.app.saveNoValidate(member);
+  return e.json(200, { base: member.getString("base") });
 }, $apis.requireAuth("users"));
 
 /** Draws a person's full body in their outfit for that day, from their saved face. */
 routerAdd("POST", "/api/ai/render", (e) => {
   const { requirePerm, useQuota } = require(`${__hooks}/lib/ai.js`);
-  const { editImage, fileFromDataUrl, recordFileDataUrl } = require(`${__hooks}/lib/image.js`);
+  const { editImage, fileFromDataUrl, recordFileDataUrl, fullBodyPrompt } = require(`${__hooks}/lib/image.js`);
   requirePerm(e, "ai");
   requirePerm(e, "outfits");
   let outfit;
@@ -305,13 +312,7 @@ routerAdd("POST", "/api/ai/render", (e) => {
   const face = recordFileDataUrl(e.app, person, "face");
   if (!face) throw new BadRequestError("얼굴을 먼저 만들어 주세요.");
   useQuota(e.app, e.auth.id, "render");
-  const look = JSON.parse(person.getString("look") || "{}") || {};
-  const build = { slim: "slim", broad: "broad-shouldered" }[look.build] || "average";
-  const image = editImage([face],
-    "Full-body 3D emoji-style avatar of this exact person (same face, hair and glasses as the reference picture), natural adult body proportions "
-      + `with the head about one sixth of the height, ${build} build, standing straight, front view, arms relaxed at the sides, wearing exactly: ${items.join(", ")}. `
-      + "Soft glossy 3D render like a smartphone emoji avatar, soft studio light, plain solid white background, "
-      + "the whole body from hair to shoes visible and centered with a small margin, no text.",
+  const image = editImage([face], fullBodyPrompt(JSON.parse(person.getString("look") || "{}") || {}, items.join(", ")),
     "1024x1536");
   outfit.set("render", fileFromDataUrl(image, "render.webp"));
   outfit.set("renderFor", items.join("\n"));

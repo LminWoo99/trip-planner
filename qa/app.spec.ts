@@ -414,6 +414,7 @@ test.describe("여행 목록", () => {
 test.describe("Google 지도·장소", () => {
   // Google's per-minute quota can reject a burst of test calls; one retry keeps the run honest
   test.describe.configure({ retries: 1 });
+  test.skip(process.env.QA_MAPS !== "1", "needs the real Google key; run with QA_MAPS=1");
   test.use({ storageState: "qa/.auth/minu.json" });
 
   test("동선 지도가 Google 지도로 뜨고 번호 핀이 찍힌다", async ({ page }) => {
@@ -602,7 +603,7 @@ test.describe("다른 탭", () => {
   });
 
   test("여러 곳 한 번에 추가에서 이름을 붙여넣으면 Google 후보를 보여준다", async ({ page }) => {
-    test.skip(test.info().project.name !== "iphone", "uses Google quota; once is enough");
+    test.skip(test.info().project.name !== "iphone" || process.env.QA_MAPS !== "1", "uses Google quota; once, with QA_MAPS=1");
     await page.goto("/");
     await page.getByRole("button", { name: "장소" }).click();
     await page.getByRole("button", { name: "여러 곳 한 번에 추가" }).click();
@@ -833,6 +834,11 @@ test.describe("코디", () => {
     await expect(page.getByRole("img", { name: "내 얼굴" })).toBeVisible();
     await shot(page, "101b-outfit-refine");
     await page.getByRole("button", { name: "이 아바타로 할게요" }).click();
+    // with faces saved, both stand in plain clothes on every day right away
+    await expect(page.locator(".of-drawn img")).toHaveCount(2, { timeout: 20000 });
+    await page.getByRole("button", { name: "코디 3일차" }).click();
+    await expect(page.locator(".of-drawn img")).toHaveCount(2);
+    await page.getByRole("button", { name: "코디 1일차" }).click();
     // dress up with text; an unknown word goes to the (fake) AI on save
     await page.getByRole("button", { name: "내 코디 정하기" }).click();
     await page.locator("#outfit-text").fill("네이비 바람막이\n검정 등산바지\n트레킹화\n아빠가 입던 그거");
@@ -841,8 +847,8 @@ test.describe("코디", () => {
     await expect(page.locator(".of-list").first()).toContainText("네이비 바람막이");
     // a full-body drawing in these clothes, made from the saved face
     await page.getByRole("button", { name: "코디 그림으로 보기" }).click();
-    await expect(page.locator(".of-drawn img")).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole("button", { name: /다시 그리기|그림으로 보기/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /다시 그리기|그림으로 보기/ })).toHaveCount(0, { timeout: 20000 });
+    await expect(page.locator(".of-drawn img").first()).toHaveAttribute("src", /\/api\/files\/outfits\//);
     await shot(page, "101c-outfit-drawn");
     // partner sees it and hearts it
     const ctx = await browser.newContext({ ...info.project.use, storageState: "qa/.auth/ryeojin.json" });
@@ -852,8 +858,6 @@ test.describe("코디", () => {
     await expect(her.locator(".of-list").nth(1)).toContainText("네이비 바람막이");
     await her.getByRole("button", { name: "잘 어울려요" }).click();
     await expect(page.getByText("려진이 잘 어울린대요")).toBeVisible({ timeout: 10000 });
-    await page.getByRole("button", { name: "코디 한마디 듣기" }).click();
-    await expect(page.locator(".of-coord p")).toContainText("방수 신발");
     await page.getByRole("checkbox", { name: "트레킹화 챙김" }).click();
     await expect(page.locator(".of-packed")).toContainText("1 / 4");
     await shot(page, "102-outfit-pair");
