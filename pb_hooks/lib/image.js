@@ -84,4 +84,13 @@ function editImage(images, prompt, size) {
   return "data:image/webp;base64," + b64;
 }
 
-module.exports = { picture, fileFromDataUrl, recordFileDataUrl, editImage };
+/** The same prompt for every full-body drawing, so plain and outfit drawings look alike. */
+function fullBodyPrompt(look, clothes) {
+  const build = { slim: "slim", broad: "broad-shouldered" }[look.build] || "average";
+  return "Full-body 3D emoji-style avatar of this exact person (same face, hair and glasses as the reference picture), natural adult body proportions "
+    + `with the head about one sixth of the height, ${build} build, standing straight, front view, arms relaxed at the sides, wearing exactly: ${clothes}. `
+    + "Soft glossy 3D render like a smartphone emoji avatar, soft studio light, plain solid white background, "
+    + "the whole body from hair to shoes visible and centered with a small margin, no text.";
+}
+
+module.exports = { picture, fileFromDataUrl, recordFileDataUrl, editImage, fullBodyPrompt };

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Heart, Paintbrush, Pencil, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Heart, Paintbrush, Pencil } from "lucide-react";
 import { useApp } from "../../app/store";
 import { DEFAULT_LOOK, packedCount, renderKey, type Garment } from "../../domain/wardrobe";
-import { aiCoord, aiRender, listOutfits, me, outfitPeople, saveOutfit, subscribeOutfits, type OutfitPerson, type OutfitRec } from "../../infra/pocketbase";
+import { aiBase, aiRender, listOutfits, me, outfitPeople, saveOutfit, subscribeOutfits, type OutfitPerson, type OutfitRec } from "../../infra/pocketbase";
 import { fileUrl } from "../../infra/photos";
 import { useFileToken } from "../Photos";
 import { describe, weatherFor } from "../../infra/weather";
@@ -25,10 +25,11 @@ export function OutfitsScreen() {
   const [outfits, setOutfits] = useState<OutfitRec[]>([]);
   const [editing, setEditing] = useState(false);
   const [setup, setSetup] = useState(false);
-  const [coord, setCoord] = useState<Record<string, string>>({});
-  const [asking, setAsking] = useState(false);
   const [drawing, setDrawing] = useState(false);
-  const tok = useFileToken(outfits.some((o) => o.render));
+  // plain-clothes drawings being made, by user id
+  const [basing, setBasing] = useState<string[]>([]);
+  const tok = useFileToken(outfits.some((o) => o.render) || !!people?.some((p) => p.base) || basing.length > 0);
+  const asked = useRef(new Set<string>());
   const day = days[Math.min(dayIdx, days.length - 1)];
   const { spots, forecast } = useForecast(day?.city ?? "");
   const aiAllowed = !!self?.perms.includes("ai");
@@ -46,9 +47,23 @@ export function OutfitsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
+  // someone has a face but no plain-clothes drawing yet (new face, or made before this existed): draw it once
+  useEffect(() => {
+    if (!people || !aiAllowed || !tripId) return;
+    for (const p of people) {
+      if (!p.face || p.base || asked.current.has(p.user + p.face)) continue;
+      asked.current.add(p.user + p.face);
+      setBasing((b) => [...b, p.user]);
+      void aiBase(tripId, p.user)
+        .then(({ base }) => setPeople((list) => list && list.map((x) => (x.user === p.user ? { ...x, base } : x))))
+        .catch(() => { /* the next visit tries again */ })
+        .finally(() => setBasing((b) => b.filter((u) => u !== p.user)));
+    }
+  }, [people, aiAllowed, tripId]);
+
   if (!snapshot || !day || !self) return null;
   if (!people) return <div className="screen ground"><div className="empty">코디를 불러오는 중이에요</div></div>;
-  const mePerson = people.find((p) => p.user === self.id) ?? { user: self.id, name: self.name, avatar: null, face: "" };
+  const mePerson = people.find((p) => p.user === self.id) ?? { user: self.id, member: "", name: self.name, avatar: null, face: "", base: "" };
   const partner = people.find((p) => p.user !== self.id) ?? null;
 
   if (!mePerson.avatar || setup) {
@@ -100,18 +115,6 @@ export function OutfitsScreen() {
     }
   }
 
-  async function askCoord() {
-    setAsking(true);
-    try {
-      const { text } = await aiCoord(day.id, weatherText);
-      setCoord((c) => ({ ...c, [day.id]: text }));
-    } catch (e) {
-      toast((e as { response?: { message?: string } }).response?.message || "코디 한마디를 받지 못했어요.");
-    } finally {
-      setAsking(false);
-    }
-  }
-
   const List = ({ o, own }: { o: OutfitRec | null; own: boolean }) => (
     <ul className="of-list">
       {!o?.items.length && <li className="of-empty">{own ? "아직 안 정했어요" : "아직 안 정했대요"}</li>}
@@ -137,7 +140,7 @@ export function OutfitsScreen() {
         {weatherText && <div className="of-wx">{weatherText}</div>}
         <div className={`of-duo ${partner ? "" : "solo"}`}>
           {/* both on one ground line so the height difference shows */}
-          {pair.some(({ o }) => o?.render) && tok ? (
+          {pair.some(({ p, o }) => o?.render || p.base || basing.includes(p.user)) && tok !== null ? (
             // AI drawings, standing on one ground line and sized by height
             <div className="of-scene of-drawn" role="img" aria-label={partner ? `${mePerson.name}와 ${partner.name} 코디 그림` : `${mePerson.name} 코디 그림`}>
               {pair.map(({ p, o }) => {
@@ -146,7 +149,11 @@ export function OutfitsScreen() {
                   <div key={p.user} className="of-fig" style={{ height: `${Math.round(h * 100)}%` }}>
                     {o?.render
                       ? <img src={fileUrl("outfits", o.id, o.render, tok)} alt="" />
-                      : <Avatars people={[{ look: p.avatar ?? DEFAULT_LOOK.f, items: o?.items ?? [] }]} label="" />}
+                      : p.base
+                        ? <img src={fileUrl("trip_members", p.member, p.base, tok)} alt="" />
+                        : basing.includes(p.user)
+                          ? <span className="of-basing">아바타 만드는 중</span>
+                          : <Avatars people={[{ look: p.avatar ?? DEFAULT_LOOK.f, items: o?.items ?? [] }]} label="" />}
                     {o?.render && !fresh(o) && <span className="of-stale">이전 옷</span>}
                   </div>
                 );
@@ -174,11 +181,6 @@ export function OutfitsScreen() {
           </div>
         )}
         {aiAllowed && !mePerson.face && mine?.items.length ? <button className="of-faceask" onClick={() => setSetup(true)}>얼굴을 만들면 코디를 그림으로 볼 수 있어요</button> : null}
-        {aiAllowed && (mine?.items.length || theirs?.items.length) ? (
-          <div className="of-coord">
-            {coord[day.id] ? <p>{coord[day.id]}</p> : <button className="btn ghost sm" disabled={asking} onClick={askCoord}><Sparkles className="icon" />{asking ? "보는 중" : "코디 한마디 듣기"}</button>}
-          </div>
-        ) : null}
         <div className={`of-lists ${partner ? "" : "solo"}`}>
           <List o={mine} own />
           {partner && <List o={theirs} own={false} />}

@@ -7,7 +7,8 @@ SEEDED="${QA_SEEDED_DB:-/tmp/pb_seeded}"
 
 pkill -f "pocketbase serve --http=127.0.0.1:8090" || true
 rm -rf /tmp/pb_qa && cp -R "$SEEDED" /tmp/pb_qa
-npm run build >/dev/null
+# real Google map loads count against the daily map quota of the live site; only load them when asked (QA_MAPS=1)
+if [ "${QA_MAPS:-}" = "1" ]; then npm run build >/dev/null; else VITE_GOOGLE_MAPS_KEY= npm run build >/dev/null; fi
 pkill -f "qa/fake-openai.mjs" || true
 node qa/fake-openai.mjs &
 FAKE_PID=$!

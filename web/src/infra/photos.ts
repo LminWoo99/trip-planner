@@ -10,7 +10,7 @@ export async function fileToken(): Promise<string> {
   return token.value;
 }
 
-export type FileCollection = "items" | "bookings" | "outfits" | "users";
+export type FileCollection = "items" | "bookings" | "outfits" | "users" | "trip_members";
 
 export function fileUrl(collection: FileCollection, id: string, file: string, tok: string, thumb?: "240x240" | "1200x0"): string {
   const q = new URLSearchParams({ token: tok });

@@ -71,7 +71,7 @@ routerAdd("GET", "/api/admin/overview", (e) => {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
   const aiUsage = {};
-  for (const k of ["plan", "clothes", "coord", "avatar"]) {
+  for (const k of ["plan", "clothes", "avatar", "face", "render"]) {
     aiUsage[k] = e.app.countRecords("ai_usage", $dbx.exp("kind = {:k} AND created >= {:s}", { k, s: monthStart.toISOString().replace("T", " ") }));
   }
   return e.json(200, {
