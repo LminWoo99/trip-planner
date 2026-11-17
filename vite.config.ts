@@ -58,6 +58,17 @@ export default defineConfig({
             handler: "CacheFirst",
             options: { cacheName: "photos-full", matchOptions: { ignoreSearch: true }, expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 60 } },
           },
+          // AI drawings and faces: a new drawing gets a new file name, so cache-first is safe
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/files/outfits/") || url.pathname.startsWith("/api/files/users/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "drawings",
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 120 },
+              plugins: [{ cacheKeyWillBeUsed: async ({ request }) => { const u = new URL(request.url); u.searchParams.delete("token"); return u.href; } }],
+            },
+          },
           // ticket images: kept on the phone for the whole trip, no expiry by age
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/files/bookings/"),

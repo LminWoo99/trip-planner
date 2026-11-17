@@ -47,4 +47,16 @@ function askJson(instructions, content, name, schema) {
   throw new BadRequestError("AI 답을 읽지 못했어요. 다시 해 주세요.");
 }
 
-module.exports = { requirePerm, useQuota, askJson };
+/** You, or a trip partner who also uses outfits (e.g. a photo with both of you). Returns their user record. */
+function personYouCanEdit(e, target) {
+  requirePerm(e, "outfits");
+  const u = e.app.findRecordById("users", target);
+  if (target === e.auth.id) return u;
+  if (!(u.get("perms") || []).includes("outfits")) throw new ForbiddenError("그 사람은 코디를 쓰지 않아요.");
+  const trips = (user) => e.app.findRecordsByFilter("trip_members", "user = {:u}", "", 0, 0, { u: user }).map((m) => m.getString("trip"));
+  const theirs = trips(target);
+  if (!trips(e.auth.id).some((t) => theirs.includes(t))) throw new ForbiddenError("같은 여행의 일행만 만들어 줄 수 있어요.");
+  return u;
+}
+
+module.exports = { requirePerm, useQuota, askJson, personYouCanEdit };

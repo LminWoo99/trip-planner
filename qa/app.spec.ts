@@ -819,10 +819,18 @@ test.describe("코디", () => {
     await page.locator(".avs-choice input[type=file]").setInputFiles("qa/fixtures/photo.png");
     await expect(page.getByText("2명을 찾았어요")).toBeVisible({ timeout: 20000 });
     await shot(page, "101-outfit-found");
-    await page.getByRole("button", { name: "이렇게 만들기" }).click();
+    await page.getByRole("button", { name: "얼굴 만들기" }).click();
+    // a 3D face per person from the photo; one can be remade with a note
+    await expect(page.getByRole("img", { name: "나 얼굴" })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole("img", { name: "려진 얼굴" })).toBeVisible({ timeout: 20000 });
+    await page.getByRole("textbox", { name: "려진 얼굴 고칠 점" }).fill("안경 빼 줘");
+    await page.getByRole("button", { name: "다시 만들기" }).nth(1).click();
+    await expect(page.getByRole("button", { name: "이 얼굴로 할게요" })).toBeEnabled({ timeout: 20000 });
+    await shot(page, "101a-outfit-faces");
+    await page.getByRole("button", { name: "이 얼굴로 할게요" }).click();
     // height can't come from a photo: it's asked next
     await page.locator("#avatar-height").fill("178");
-    await expect(page.getByRole("button", { name: "동그란 안경" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("img", { name: "내 얼굴" })).toBeVisible();
     await shot(page, "101b-outfit-refine");
     await page.getByRole("button", { name: "이 아바타로 할게요" }).click();
     // dress up with text; an unknown word goes to the (fake) AI on save
@@ -831,6 +839,11 @@ test.describe("코디", () => {
     await expect(page.locator(".of-parsed li").first()).toContainText("겉옷");
     await page.getByRole("button", { name: "저장", exact: true }).click();
     await expect(page.locator(".of-list").first()).toContainText("네이비 바람막이");
+    // a full-body drawing in these clothes, made from the saved face
+    await page.getByRole("button", { name: "코디 그림으로 보기" }).click();
+    await expect(page.locator(".of-drawn img")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole("button", { name: /다시 그리기|그림으로 보기/ })).toHaveCount(0);
+    await shot(page, "101c-outfit-drawn");
     // partner sees it and hearts it
     const ctx = await browser.newContext({ ...info.project.use, storageState: "qa/.auth/ryeojin.json" });
     const her = await ctx.newPage();
