@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { AlignLeft, Bus, Car, Check, ChevronRight, Footprints, Plane, Route, Ticket } from "lucide-react";
+import { AlignLeft, Bus, Check, ChevronRight, Plane, Route, Ticket } from "lucide-react";
 import type { Booking, Item } from "../../domain/types";
-import { courseKm, estimateLeg, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
+import { courseKm, formatKm, formatMinutes, gmapsSearch, type LatLng } from "../../domain/geo";
+import { PILL, useLegPill } from "./useLegPill";
 import { CATEGORY_ICON } from "../icons";
 import { PhotoStrip } from "../Photos";
 
@@ -14,13 +15,14 @@ export function Marker({ item, n }: { item: Item; n: number | null }) {
 }
 
 export function GapRow({ from, to, onOpen }: { from: LatLng; to: LatLng; onOpen: () => void }) {
-  const leg = estimateLeg(from, to);
-  const Mode = leg.mode === "walk" ? Footprints : Car;
+  const pill = useLegPill(from, to);
+  const { icon: Mode, label } = PILL[pill.mode];
+  const text = `${label} ${pill.real ? "" : "약 "}${formatMinutes(pill.minutes)}`;
   return (
     <div className="tl-gap">
-      <span className="dist">{formatKm(leg.km)}</span>
-      <button className="gap-btn" onClick={onOpen} aria-label={`다음 장소까지 ${formatKm(leg.km)}, ${leg.mode === "walk" ? "도보" : "차"} 약 ${formatMinutes(leg.minutes)}. 이동 방법 보기`}>
-        <Mode className="icon" />{leg.mode === "walk" ? "도보" : "차"} 약 {formatMinutes(leg.minutes)}<ChevronRight className="icon chev" />
+      <span className="dist">{formatKm(pill.km)}</span>
+      <button className="gap-btn" onClick={onOpen} aria-label={`다음 장소까지 ${formatKm(pill.km)}, ${text}. 이동 방법 보기`}>
+        <Mode className="icon" />{text}<ChevronRight className="icon chev" />
       </button>
     </div>
   );

@@ -457,6 +457,28 @@ test.describe("Google 지도·장소", () => {
     await shot(page, "87-leg-transit");
   });
 
+  test("타임라인 이동 시간은 실제 Google 시간이고 상세 시트의 같은 수단 값과 같다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "uses Google Routes quota; once is enough");
+    await page.goto("/");
+    await openDay(page, 3);
+    const pill = page.locator(".gap-btn").first();
+    // the estimate says "약"; the real time replaces it
+    await expect(pill).not.toContainText("약", { timeout: 20000 });
+    const text = (await pill.innerText()).trim();
+    const [, label, mins] = /^(도보|차|대중교통)\s+(.+?)$/.exec(text) ?? [];
+    expect(label).toBeTruthy();
+    await pill.click();
+    const sheet = page.getByRole("dialog", { name: "이동 방법" });
+    const tab = sheet.getByRole("tab", { selected: true });
+    await expect(tab).toContainText({ 도보: "도보", 차: "차·그랩", 대중교통: "대중교통" }[label]!);
+    await expect(tab).toContainText(mins, { timeout: 20000 });
+    await shot(page, "88-leg-match");
+    await sheet.getByRole("button", { name: "닫기" }).click();
+    await page.locator(".gap-btn").last().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(3000);
+    await shot(page, "89-timeline-real");
+  });
+
   test("위치 없는 장소 채우기가 Google에서 후보를 찾아 보여준다", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "더보기" }).click();

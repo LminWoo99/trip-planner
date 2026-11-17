@@ -3,7 +3,8 @@ import { MemoToggle } from "./MemoToggle";
 import { ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronUp, CloudFog, Link2, Pencil, Plus, RotateCcw, Split } from "lucide-react";
 import type { BranchKey, Item, Member } from "../../domain/types";
 import type { ForkEntry } from "../../domain/timeline";
-import { estimateLeg, formatKm, formatMinutes, isSameSpot, type LatLng } from "../../domain/geo";
+import { formatKm, formatMinutes, isSameSpot, type LatLng } from "../../domain/geo";
+import { PILL, useLegPill } from "./useLegPill";
 import { describe, MOUNTAIN_FORECAST_URL, type DailyWeather } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { forecastHint } from "./DayHead";
@@ -96,12 +97,12 @@ export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branc
       <div className="plan-list" role="tabpanel">
         {steps.length === 0 && <div className="p-empty">아직 일정이 없어요</div>}
         {steps.map((it) => {
-          const leg = prev && hasLoc(it) && !isSameSpot(prev, it) ? estimateLeg(prev, it) : null;
+          const legFrom: LatLng | null = prev && hasLoc(it) && !isSameSpot(prev, it) ? prev : null;
           if (hasLoc(it)) prev = it;
           const num = it.place ? n++ : null;
           return (
             <div key={it.id} style={{ display: "contents" }}>
-              {leg && <div className="p-leg">{leg.mode === "walk" ? "도보" : "차"} 약 {formatMinutes(leg.minutes)}, {formatKm(leg.km)}</div>}
+              {legFrom && <PlanLeg from={legFrom} to={it as LatLng} />}
               <div className="p-row">
                 {num !== null ? <span className="p-mk">{num}</span> : <span className="p-mk dot" />}
                 <div style={{ minWidth: 0 }}>
@@ -180,4 +181,10 @@ export function OtherPlans({ entry }: { entry: ForkEntry }) {
 function hasBatchim(word: string): boolean {
   const code = word.charCodeAt(word.length - 1) - 0xac00;
   return code >= 0 && code <= 11171 && code % 28 !== 0;
+}
+
+/** Leg between plan steps: the same real time as the timeline once known. */
+function PlanLeg({ from, to }: { from: LatLng; to: LatLng }) {
+  const pill = useLegPill(from, to);
+  return <div className="p-leg">{PILL[pill.mode].label} {pill.real ? "" : "약 "}{formatMinutes(pill.minutes)}, {formatKm(pill.km)}</div>;
 }

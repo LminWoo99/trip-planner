@@ -43,7 +43,8 @@ const cache = new Map<string, Promise<RouteResult | null>>();
 
 export function computeLeg(from: LatLng, to: LatLng, mode: Mode, departure?: Date, tz = deviceTz()): Promise<RouteResult | null> {
   const when = departure ? Math.floor(departure.getTime() / 900_000) : "now"; // 15-minute buckets
-  const key = `${from.lat},${from.lng}|${to.lat},${to.lng}|${mode}|${when}|${tz}`;
+  // departure time and zone only change transit answers; other modes share one entry
+  const key = `${from.lat},${from.lng}|${to.lat},${to.lng}|${mode}${mode === "TRANSIT" ? `|${when}|${tz}` : ""}`;
   if (!cache.has(key)) {
     const p = fetchLeg(from, to, mode, departure, tz).catch((e) => { cache.delete(key); throw e; });
     cache.set(key, p);
@@ -135,3 +136,64 @@ export function grabUrl(to: LatLng, name: string): string {
   const q = new URLSearchParams({ screenType: "BOOKING", dropOffLatitude: String(to.lat), dropOffLongitude: String(to.lng), dropOffAddress: name });
   return `grab://open?${q}`;
 }
+
+// ---- timeline times: small results kept on the phone so each leg is asked once a week ----
+
+export interface LegTimes {
+  readonly walk: { minutes: number; meters: number } | null;
+  readonly transit: { minutes: number; meters: number } | null;
+  readonly car: { minutes: number; meters: number } | null;
+}
+
+const TIMES_KEY = "leg-times-v1";
+const TIMES_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const pending = new Map<string, Promise<LegTimes>>();
+
+const readTimes = (): Record<string, { at: number; v: LegTimes }> => {
+  try { return JSON.parse(localStorage.getItem(TIMES_KEY) ?? "{}"); } catch { return {}; }
+};
+
+export function cachedLegTimes(from: LatLng, to: LatLng): LegTimes | null {
+  const hit = readTimes()[timesKey(from, to)];
+  return hit && Date.now() - hit.at < TIMES_TTL_MS ? hit.v : null;
+}
+
+const timesKey = (a: LatLng, b: LatLng) => `${a.lat.toFixed(5)},${a.lng.toFixed(5)}|${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
+
+/** Real walk / transit / car times for a leg; short legs only ask for walking. */
+export function legTimes(from: LatLng, to: LatLng, straightKm: number): Promise<LegTimes> {
+  const key = timesKey(from, to);
+  const cached = cachedLegTimes(from, to);
+  if (cached) return Promise.resolve(cached);
+  if (!pending.has(key)) {
+    const pick = (r: RouteResult | null) => (r ? { minutes: r.minutes, meters: r.meters } : null);
+    const p = (async () => {
+      const walkOnly = straightKm <= 1.5;
+      const [walk, transit, car] = await Promise.all([
+        walkOnly || straightKm <= 3 ? computeLeg(from, to, "WALKING").then(pick) : Promise.resolve(null),
+        walkOnly ? Promise.resolve(null) : computeLeg(from, to, "TRANSIT").then((r) => (r && !r.walkOnly ? pick(r) : null)),
+        walkOnly ? Promise.resolve(null) : computeLeg(from, to, "DRIVING").then(pick),
+      ]);
+      const v: LegTimes = { walk, transit, car };
+      rememberLegTimes(from, to, v);
+      return v;
+    })().finally(() => pending.delete(key));
+    pending.set(key, p);
+  }
+  return pending.get(key)!;
+}
+
+/**
+ * Stores a leg's times and tells the timeline. The leg sheet calls this with what it showed,
+ * so the timeline number becomes exactly the sheet's number afterwards.
+ */
+export function rememberLegTimes(from: LatLng, to: LatLng, v: LegTimes): void {
+  try {
+    const all = readTimes();
+    all[timesKey(from, to)] = { at: Date.now(), v };
+    localStorage.setItem(TIMES_KEY, JSON.stringify(all));
+  } catch { /* storage full or blocked */ }
+  window.dispatchEvent(new Event(LEG_TIMES_EVENT));
+}
+
+export const LEG_TIMES_EVENT = "leg-times";
