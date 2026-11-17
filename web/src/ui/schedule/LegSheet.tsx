@@ -3,8 +3,9 @@ import { ArrowUpRight, Bike, Car, Footprints, Navigation, TrainFront } from "luc
 import type { Item } from "../../domain/types";
 import { estimateLeg, formatMinutes, gmapsRoute } from "../../domain/geo";
 import { formatHm, zonedDate } from "../../domain/clock";
-import { computeLeg, formatMeters, grabUrl, type Mode, type RouteResult } from "../../infra/routes";
+import { computeLeg, formatMeters, grabUrl, rememberLegTimes, type Mode, type RouteResult } from "../../infra/routes";
 import { hasGoogleKey, loadMaps } from "../../infra/google";
+import { sheetMode, useLegPill } from "./useLegPill";
 import { Sheet } from "../Sheet";
 import { toast } from "../toast";
 
@@ -21,7 +22,9 @@ type State = { status: "loading" } | { status: "none" } | { status: "error" } | 
 /** How to get from one stop to the next: real times per mode from Google, steps, and hand-off to Maps or Grab. */
 export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: Located; date: string; tz: string; onClose: () => void }) {
   const guess = estimateLeg(from, to);
-  const [mode, setMode] = useState<Mode>(guess.mode === "walk" ? "WALKING" : "DRIVING");
+  const pill = useLegPill(from, to);
+  // open on the mode the timeline shows, so the number matches what was tapped
+  const [mode, setMode] = useState<Mode>(sheetMode(pill.mode));
   const [results, setResults] = useState<Partial<Record<Mode, State>>>({});
   const offline = !navigator.onLine || !hasGoogleKey();
   // item times are the destination's wall clock, wherever the phone is set
@@ -39,6 +42,14 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // once every mode has answered, the timeline adopts these exact numbers
+  useEffect(() => {
+    if (offline || MODES.some((m) => !results[m.mode] || results[m.mode]!.status === "loading")) return;
+    const t = (m: Mode) => { const s = results[m]; return s?.status === "ok" && !(m === "TRANSIT" && s.route.walkOnly) ? { minutes: s.route.minutes, meters: s.route.meters } : null; };
+    rememberLegTimes(from, to, { walk: t("WALKING"), transit: t("TRANSIT"), car: t("DRIVING") });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results]);
 
   const current = results[mode];
   const route = current?.status === "ok" ? current.route : null;
@@ -82,7 +93,12 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
       ) : !current || current.status === "loading" ? (
         <p className="note-box">경로를 찾는 중이에요</p>
       ) : current.status === "none" ? (
-        <p className="note-box">{mode === "TRANSIT" ? "이 구간은 대중교통 경로가 없어요. 차나 도보를 골라 보세요." : "이 수단으로는 경로가 없어요."}</p>
+        mode === "TRANSIT" ? (
+          <div className="note-box">
+            Google이 이 구간의 대중교통 경로를 주지 않았어요. 일본처럼 앱 밖으로는 대중교통 경로를 주지 않는 나라도 있어요. 구글맵 앱에서는 보일 수 있어요.
+            <a className="btn ghost" style={{ marginTop: 10, textDecoration: "none" }} href={mapsUrl} target="_blank" rel="noopener noreferrer"><TrainFront className="icon" />구글맵 앱에서 대중교통 보기</a>
+          </div>
+        ) : <p className="note-box">이 수단으로는 경로가 없어요.</p>
       ) : current.status === "error" ? (
         <p className="note-box" style={{ color: "var(--danger)" }}>경로를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>
       ) : route?.walkOnly ? (
