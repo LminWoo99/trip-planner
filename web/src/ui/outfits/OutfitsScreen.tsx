@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Heart, Pencil, Sparkles } from "lucide-react";
+import { Check, Heart, Paintbrush, Pencil, Sparkles } from "lucide-react";
 import { useApp } from "../../app/store";
-import { DEFAULT_LOOK, packedCount, type Garment } from "../../domain/wardrobe";
-import { aiCoord, listOutfits, me, outfitPeople, saveOutfit, subscribeOutfits, type OutfitPerson, type OutfitRec } from "../../infra/pocketbase";
+import { DEFAULT_LOOK, packedCount, renderKey, type Garment } from "../../domain/wardrobe";
+import { aiCoord, aiRender, listOutfits, me, outfitPeople, saveOutfit, subscribeOutfits, type OutfitPerson, type OutfitRec } from "../../infra/pocketbase";
+import { fileUrl } from "../../infra/photos";
+import { useFileToken } from "../Photos";
 import { describe, weatherFor } from "../../infra/weather";
 import { useForecast } from "../useForecast";
 import { tripToday, useNow } from "../useNow";
@@ -25,6 +27,8 @@ export function OutfitsScreen() {
   const [setup, setSetup] = useState(false);
   const [coord, setCoord] = useState<Record<string, string>>({});
   const [asking, setAsking] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const tok = useFileToken(outfits.some((o) => o.render));
   const day = days[Math.min(dayIdx, days.length - 1)];
   const { spots, forecast } = useForecast(day?.city ?? "");
   const aiAllowed = !!self?.perms.includes("ai");
@@ -44,7 +48,7 @@ export function OutfitsScreen() {
 
   if (!snapshot || !day || !self) return null;
   if (!people) return <div className="screen ground"><div className="empty">코디를 불러오는 중이에요</div></div>;
-  const mePerson = people.find((p) => p.user === self.id) ?? { user: self.id, name: self.name, avatar: null };
+  const mePerson = people.find((p) => p.user === self.id) ?? { user: self.id, name: self.name, avatar: null, face: "" };
   const partner = people.find((p) => p.user !== self.id) ?? null;
 
   if (!mePerson.avatar || setup) {
@@ -76,6 +80,26 @@ export function OutfitsScreen() {
     setOutfits((list) => list.map((o) => (o.id === mine.id ? { ...o, items } : o)));
     await attempt(() => saveOutfit(tripId, day.id, mine, { items }));
   }
+  // people whose drawing is missing or was made with other clothes, and who have a face to draw from
+  const pair = [{ p: mePerson, o: mine }, ...(partner ? [{ p: partner, o: theirs }] : [])];
+  const fresh = (o: OutfitRec | null) => !!o?.render && o.renderFor === renderKey(o.items);
+  const toDraw = pair.filter(({ p, o }) => p.face && o?.items.length && !fresh(o));
+  async function draw() {
+    setDrawing(true);
+    try {
+      for (const { o } of toDraw) {
+        const r = await aiRender(o!.id);
+        setOutfits((list) => list.map((x) => (x.id === o!.id ? { ...x, ...r } : x)));
+      }
+    } catch (e) {
+      toast((e as { response?: { message?: string } }).response?.message || "그림을 받지 못했어요. 잠시 뒤 다시 열어 보세요.");
+      // the server may still finish the drawing; pick it up
+      void listOutfits(tripId).then(setOutfits).catch(() => { /* offline */ });
+    } finally {
+      setDrawing(false);
+    }
+  }
+
   async function askCoord() {
     setAsking(true);
     try {
@@ -113,8 +137,25 @@ export function OutfitsScreen() {
         {weatherText && <div className="of-wx">{weatherText}</div>}
         <div className={`of-duo ${partner ? "" : "solo"}`}>
           {/* both on one ground line so the height difference shows */}
-          <Avatars className="of-scene" label={partner ? `${mePerson.name}와 ${partner.name}` : `${mePerson.name} 아바타`}
-            people={[{ look: mePerson.avatar, items: mine?.items ?? [] }, ...(partner ? [{ look: partner.avatar ?? DEFAULT_LOOK.f, items: theirs?.items ?? [] }] : [])]} />
+          {pair.some(({ o }) => o?.render) && tok ? (
+            // AI drawings, standing on one ground line and sized by height
+            <div className="of-scene of-drawn" role="img" aria-label={partner ? `${mePerson.name}와 ${partner.name} 코디 그림` : `${mePerson.name} 코디 그림`}>
+              {pair.map(({ p, o }) => {
+                const h = (p.avatar ?? DEFAULT_LOOK.f).height / Math.max(...pair.map((x) => (x.p.avatar ?? DEFAULT_LOOK.f).height));
+                return (
+                  <div key={p.user} className="of-fig" style={{ height: `${Math.round(h * 100)}%` }}>
+                    {o?.render
+                      ? <img src={fileUrl("outfits", o.id, o.render, tok)} alt="" />
+                      : <Avatars people={[{ look: p.avatar ?? DEFAULT_LOOK.f, items: o?.items ?? [] }]} label="" />}
+                    {o?.render && !fresh(o) && <span className="of-stale">이전 옷</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <Avatars className="of-scene" label={partner ? `${mePerson.name}와 ${partner.name}` : `${mePerson.name} 아바타`}
+              people={[{ look: mePerson.avatar, items: mine?.items ?? [] }, ...(partner ? [{ look: partner.avatar ?? DEFAULT_LOOK.f, items: theirs?.items ?? [] }] : [])]} />
+          )}
           <div className="of-names">
             <button className="of-who" onClick={() => setEditing(true)} aria-label="내 코디 정하기"><b>{mePerson.name}<Pencil className="icon" /></b><small className="num">{mePerson.avatar.height}</small></button>
             {partner && <div className="of-who"><b>{partner.name}</b>{partner.avatar && <small className="num">{partner.avatar.height}</small>}</div>}
@@ -126,6 +167,13 @@ export function OutfitsScreen() {
             </div>
           )}
         </div>
+        {aiAllowed && (drawing || toDraw.length > 0) && (
+          <div className="of-draw">
+            <button className="btn ghost sm" disabled={drawing} onClick={draw}><Paintbrush className="icon" />{drawing ? "그리는 중이에요" : pair.some(({ o }) => o?.render) ? "바뀐 옷으로 다시 그리기" : "코디 그림으로 보기"}</button>
+            <small>{drawing ? `한 명에 30초쯤 걸려요` : `${toDraw.map(({ p }) => (p.user === self.id ? "나" : p.name)).join(", ")} 그림을 만들어요`}</small>
+          </div>
+        )}
+        {aiAllowed && !mePerson.face && mine?.items.length ? <button className="of-faceask" onClick={() => setSetup(true)}>얼굴을 만들면 코디를 그림으로 볼 수 있어요</button> : null}
         {aiAllowed && (mine?.items.length || theirs?.items.length) ? (
           <div className="of-coord">
             {coord[day.id] ? <p>{coord[day.id]}</p> : <button className="btn ghost sm" disabled={asking} onClick={askCoord}><Sparkles className="icon" />{asking ? "보는 중" : "코디 한마디 듣기"}</button>}

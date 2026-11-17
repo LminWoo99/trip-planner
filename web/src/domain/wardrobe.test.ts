@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATALOG, HAIR_PRESETS, normalizeLook, packedCount, parseGarment, wornBySlot } from "./wardrobe";
+import { CATALOG, HAIR_PRESETS, normalizeLook, packedCount, parseGarment, wornBySlot, renderKey } from "./wardrobe";
 
 describe("parseGarment", () => {
   it("종류의 기본 특징에 색을 더한다", () => {
@@ -77,5 +77,25 @@ describe("normalizeLook", () => {
     // then
     expect(look).toMatchObject({ hairStyle: "straight", height: 162, glasses: "" });
     expect(HAIR_PRESETS[look!.hairStyle]).toBeDefined();
+  });
+});
+
+describe("renderKey", () => {
+  it("챙김 표시만 바뀌면 그림을 다시 그릴 필요가 없다", () => {
+    // given
+    const items = [parseGarment("검정 블레이저")!, parseGarment("청바지")!];
+    const packed = items.map((g) => ({ ...g, packed: true }));
+
+    // when / then
+    expect(renderKey(packed)).toBe(renderKey(items));
+  });
+
+  it("옷 글이 바뀌면 다른 키가 된다", () => {
+    // given
+    const before = [parseGarment("검정 블레이저")!];
+    const after = [parseGarment("베이지 트렌치코트")!];
+
+    // when / then
+    expect(renderKey(after)).not.toBe(renderKey(before));
   });
 });

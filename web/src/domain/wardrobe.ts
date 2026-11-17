@@ -41,6 +41,10 @@ export interface Garment extends Features {
 interface CatalogEntry { id: string; slot: Slot; label: string; attrs: Features; keywords: string[] }
 export const CATALOG = catalog as CatalogEntry[];
 
+/** What a drawing was made from; the server stores the same string, so a mismatch means the clothes changed. */
+export const renderKey = (items: readonly Garment[]): string =>
+  items.filter((g) => g.text).map((g) => g.text.slice(0, 60)).slice(0, 12).join("\n");
+
 export const SLOT_LABEL: Record<Slot, string> = { outer: "겉옷", top: "상의", bottom: "하의", dress: "원피스", shoes: "신발", hat: "모자", acc: "소품" };
 
 export const COLORS: readonly [readonly string[], string, string][] = [
