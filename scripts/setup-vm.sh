@@ -41,8 +41,8 @@ npm ci
 npm run build
 
 if [ ! -f .env ]; then
-  read -r -p "입장 코드(MMDD 4자리): " CODE </dev/tty
-  printf 'TRIP_GATE_CODE=%s\nPB_HTTP=0.0.0.0:8090\n' "$CODE" > .env
+  # add OPENAI_API_KEY / OPENAI_MODEL here by hand for the AI features
+  printf 'PB_HTTP=0.0.0.0:8090\n' > .env
   chmod 600 .env
 fi
 

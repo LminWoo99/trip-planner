@@ -11,22 +11,37 @@ async function openDay(page: Page, n: number) {
 test.describe("진입", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("틀린 코드는 거절하고 맞는 코드와 이름으로 들어간다", async ({ page }, info) => {
-    test.skip(info.project.name !== "iphone", "gate is rate limited; run once");
+  test("틀린 비밀번호는 같은 문구로 거절하고 맞으면 여행 목록으로 들어간다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "login is rate limited; run once");
     await page.goto("/");
-    await shot(page, "01-gate");
-    await page.getByLabel("사귄 날짜 4자리").fill("1111");
-    await page.getByRole("button", { name: "들어가기" }).click();
-    await expect(page.getByRole("alert")).toHaveText("땡! 다시 생각해 봐");
-    await page.getByLabel("사귄 날짜 4자리").fill(process.env.TRIP_GATE_CODE ?? "1234");
-    await page.getByRole("button", { name: "들어가기" }).click();
-    await expect(page.getByRole("heading", { name: "누구세요?" })).toBeVisible();
-    await shot(page, "02-who");
-    await page.getByRole("button", { name: /^민우/ }).click();
-    // first entry lands on the trip list
+    await shot(page, "01-login");
+    await page.locator("#login-id").fill("qa_minu");
+    await page.locator("#login-pw").fill("9999");
+    await page.getByRole("button", { name: "로그인" }).click();
+    await expect(page.getByRole("alert")).toHaveText("아이디 또는 비밀번호가 올바르지 않습니다.");
+    await page.waitForTimeout(3100); // PocketBase: 2 auth calls per 3 seconds
+    await page.locator("#login-pw").fill("qa-pass-11");
+    await page.getByRole("button", { name: "로그인" }).click();
     await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
     await page.getByRole("button", { name: /사파 여행/ }).click();
     await expect(page.getByRole("button", { name: /^1일차/ })).toBeVisible();
+  });
+
+  test("가입은 숫자만 된 비밀번호를 막고 규칙을 지키면 바로 들어간다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "creates an account; run once");
+    await page.goto("/");
+    await page.getByRole("button", { name: "가입하기" }).click();
+    await page.locator("#su-id").fill("qa_friend");
+    await page.locator("#su-name").fill("친구");
+    await page.locator("#su-pw").fill("12345678");
+    await expect(page.locator(".pw-rules li.bad")).toContainText("숫자만으로는 안 돼요");
+    await expect(page.getByRole("button", { name: "가입하기", exact: true })).toBeDisabled();
+    await shot(page, "02-signup");
+    await page.locator("#su-pw").fill("trip2026!");
+    await page.getByRole("button", { name: "가입하기", exact: true }).click();
+    // a new person sees no trips: the Sapa trip is only for its members
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /사파 여행/ })).toHaveCount(0);
   });
 });
 
@@ -619,6 +634,36 @@ test.describe("오프라인", () => {
     await expect(page.getByText(/오프라인, 마지막 동기화/)).toBeVisible();
     await shot(page, "70-offline");
     await context.setOffline(false);
+  });
+});
+
+test.describe("관리자", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+  test("관리자는 /admin에서 가입자·권한·접속 기록을 보고 권한을 켜고 끌 수 있다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "changes permissions; run once");
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: "관리" })).toBeVisible();
+    await expect(page.locator(".admin-row").filter({ hasText: "@qa_ryeojin" })).toBeVisible();
+    await shot(page, "90-admin-users");
+    await page.getByRole("tab", { name: "권한" }).click();
+    const sw = page.getByRole("switch", { name: "려진 AI" });
+    await expect(sw).toBeChecked();
+    await sw.click({ force: true });
+    await expect(sw).not.toBeChecked();
+    await sw.click({ force: true });
+    await expect(sw).toBeChecked();
+    await page.getByRole("tab", { name: "접속 기록" }).click();
+    await expect(page.locator(".admin-row").first()).toBeVisible();
+    await shot(page, "91-admin-events");
+  });
+
+  test("관리자가 아니면 /admin을 볼 수 없다", async ({ browser }, info) => {
+    test.skip(info.project.name !== "iphone", "once is enough");
+    const ctx = await browser.newContext({ ...info.project.use, storageState: "qa/.auth/ryeojin.json" });
+    const page = await ctx.newPage();
+    await page.goto("/admin");
+    await expect(page.getByText("관리자 계정만 볼 수 있어요.")).toBeVisible();
+    await ctx.close();
   });
 });
 

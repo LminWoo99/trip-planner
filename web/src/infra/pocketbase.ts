@@ -84,14 +84,31 @@ export async function subscribeTrip(tripId: string, onEvent: RealtimeHandler, on
   return () => { unsubs.forEach((u) => u()); unsubConnect(); };
 }
 
-export async function enterWithCode(code: string, who: string): Promise<void> {
-  const res = await pb.send("/api/gate/enter", { method: "POST", body: { code, who } });
+export async function login(username: string, password: string): Promise<void> {
+  await pb.collection("users").authWithPassword(username.trim().toLowerCase(), password);
+}
+
+export async function signup(username: string, name: string, password: string): Promise<void> {
+  const res = await pb.send("/api/signup", { method: "POST", body: { username, name, password } });
   pb.authStore.save(res.token, res.record);
 }
 
-export async function checkCode(code: string): Promise<void> {
-  await pb.send("/api/gate/check", { method: "POST", body: { code } });
+export type Perm = "outfits" | "ai";
+
+/** Who is signed in, from the auth record (refreshed on every app open). */
+export function me(): { id: string; name: string; username: string; admin: boolean; perms: Perm[] } | null {
+  const r = pb.authStore.record;
+  if (!r) return null;
+  return { id: r.id, name: r.name ?? "", username: r.username ?? "", admin: r.role === "admin", perms: Array.isArray(r.perms) ? r.perms : [] };
 }
+
+// ---- admin ----
+
+export interface AdminUser { id: string; username: string; name: string; role: string; perms: Perm[]; created: string; lastSeen: string; trips: number }
+export interface AuthEvent { id: string; kind: "login_ok" | "login_fail" | "signup"; user: string; name: string; username: string; ip: string; country: string; ua: string; created: string }
+
+export const adminOverview = (): Promise<{ users: AdminUser[]; events: AuthEvent[] }> => pb.send("/api/admin/overview", { method: "GET" });
+export const setPerms = (id: string, perms: Perm[]) => pb.send(`/api/admin/users/${id}/perms`, { method: "POST", body: { perms } });
 
 // ---- trip list ----
 
