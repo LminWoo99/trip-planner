@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpDown, CalendarArrowUp, Check, Copy, Plus, Split, Trash2 } from "lucide-react";
+import { ArrowUpDown, CalendarArrowUp, Check, Copy, PenLine, Plus, Split, Trash2 } from "lucide-react";
 import type { BranchKey, Group, Item, Booking, Day } from "../../domain/types";
 import { buildDay, effectiveBranch, effectiveItems } from "../../domain/timeline";
 import { isSameSpot, type LatLng } from "../../domain/geo";
@@ -14,6 +14,7 @@ import { nowState, bookingDate } from "../../domain/now";
 import { tzForCity } from "../../infra/weather";
 import { NowCard } from "./NowCard";
 import { TicketViewer } from "../Tickets";
+import { me as currentUser } from "../../infra/pocketbase";
 import { useForecast } from "../useForecast";
 import { DayHead } from "./DayHead";
 
@@ -34,6 +35,7 @@ const GroupSheet = lazy(() => import("./GroupSheet").then((m) => ({ default: m.G
 const RouteSheet = lazy(() => import("./RouteSheet").then((m) => ({ default: m.RouteSheet })));
 const MoveCopySheet = lazy(() => import("./MoveCopySheet").then((m) => ({ default: m.MoveCopySheet })));
 const ItemDetailSheet = lazy(() => import("./ItemDetailSheet").then((m) => ({ default: m.ItemDetailSheet })));
+const AiPlanSheet = lazy(() => import("./AiPlanSheet").then((m) => ({ default: m.AiPlanSheet })));
 const LegSheet = lazy(() => import("./LegSheet").then((m) => ({ default: m.LegSheet })));
 const DaySheet = lazy(() => import("./DaySheet").then((m) => ({ default: m.DaySheet })));
 
@@ -63,6 +65,8 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   const now = useNow();
   const today = tripToday(days, now);
   const [ticketOpen, setTicketOpen] = useState<Booking | null>(null);
+  const [aiPlan, setAiPlan] = useState(false);
+  const canAi = !!currentUser()?.perms.includes("ai");
   const { spots, forecast } = useForecast(day?.city ?? "");
   useEffect(() => { onSelectionBar(edit && selected.size > 0); }, [edit, selected, onSelectionBar]);
   // keep the chosen day visible in the scrolling row (e.g. today on a long trip)
@@ -242,6 +246,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
         )}
       </div>
 
+      {!edit && canAi && <button className="fab-ai" onClick={() => setAiPlan(true)}><PenLine className="icon" />글로 넣기</button>}
       {!edit && <button className="fab" aria-label="일정 추가" onClick={() => openNew()}><Plus className="icon" /></button>}
       {edit && selected.size > 0 && (
         <div className="selbar">
@@ -273,6 +278,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
           return it ? <RouteSheet item={it} onClose={() => setRouteId(null)} onEdit={() => { setRouteId(null); setItemSheet({ item: it, target: { day: it.day, group: it.group, branch: it.branch } }); }} /> : null;
         })()}
       </Suspense>
+      {aiPlan && <Suspense fallback={null}><AiPlanSheet onClose={() => setAiPlan(false)} /></Suspense>}
       {ticketOpen && <TicketViewer booking={ticketOpen} onClose={() => setTicketOpen(null)} />}
       {(bulk === "move" || bulk === "copy") && (
         <Suspense fallback={null}><MoveCopySheet mode={bulk} ids={selected} currentDay={day.id} onClose={() => setBulk(null)} onDone={() => { setBulk(null); setSelected(new Set()); }} /></Suspense>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { adminOverview, me, setPerms, type AdminUser, type AuthEvent, type Perm } from "../infra/pocketbase";
+import { adminOverview, me, setPerms, type AdminUser, type Perm } from "../infra/pocketbase";
 import { attempt } from "./toast";
 
 const COLORS = ["#5b4fe0", "#e2557a", "#2f9e8f", "#d9822b", "#3a7bd5", "#8a6d3b"];
@@ -29,7 +29,7 @@ function device(ua: string): string {
 /** /admin: sign-ups, per-person features and sign-in history. The server checks the role too. */
 export function AdminScreen() {
   const self = me();
-  const [data, setData] = useState<{ users: AdminUser[]; events: AuthEvent[] } | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof adminOverview>> | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"users" | "perms" | "events">("users");
 
@@ -101,6 +101,20 @@ export function AdminScreen() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === "perms" && data.aiUsage && (
+          <div className="admin-usage">
+            <b>이번 달 AI 사용</b>
+            <table>
+              <tbody>
+                {([["plan", "일정 나누기"], ["clothes", "옷 알아듣기"], ["coord", "코디 한마디"], ["avatar", "사진으로 아바타"]] as const).map(([k, n]) => (
+                  <tr key={k}><td>{n}</td><td className="num">{data.aiUsage![k]}번</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <small>한 사람이 하루 30번까지 쓸 수 있어요.</small>
           </div>
         )}
 
