@@ -118,8 +118,8 @@ export const inviteUrl = (token: string) => `${location.origin}/j/${token}`;
 
 // ---- outfits ----
 
-/** face: file name of the AI face (empty until made) */
-export interface OutfitPerson { user: string; name: string; avatar: Look | null; face: string }
+/** face: file name of the AI face (empty until made); base: plain-clothes drawing on their trip membership `member` */
+export interface OutfitPerson { user: string; member: string; name: string; avatar: Look | null; face: string; base: string }
 /** render: AI full-body drawing file; renderFor: the clothes it was drawn with (see renderKey) */
 export interface OutfitRec { id: string; day: string; user: string; items: Garment[]; likedBy: string[]; render: string; renderFor: string }
 
@@ -129,7 +129,7 @@ const toOutfit = (r: RecordModel): OutfitRec => ({
 });
 
 export const outfitPeople = async (tripId: string): Promise<OutfitPerson[]> =>
-  ((await pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" })) as OutfitPerson[]).map((p) => ({ ...p, avatar: normalizeLook(p.avatar), face: p.face ?? "" }));
+  ((await pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" })) as OutfitPerson[]).map((p) => ({ ...p, avatar: normalizeLook(p.avatar), face: p.face ?? "", base: p.base ?? "" }));
 export const saveLook = (look: Look, user?: string) => pb.send("/api/avatar", { method: "POST", body: { look, user } });
 export const listOutfits = async (tripId: string): Promise<OutfitRec[]> =>
   (await pb.collection("outfits").getFullList({ filter: pb.filter("trip = {:t}", { t: tripId }) })).map(toOutfit);
@@ -154,10 +154,10 @@ export const aiAvatar = (image: string, hairStyles: string[]): Promise<{ people:
 export const aiFace = (image: string, count: number, position: number, summary: string, note = ""): Promise<{ image: string }> =>
   pb.send("/api/ai/face", { method: "POST", body: { image, count, position, summary, note } });
 export const saveFace = (image: string, user?: string): Promise<{ face: string }> => pb.send("/api/avatar/face", { method: "POST", body: { image, user } });
+export const aiBase = (trip: string, user: string): Promise<{ base: string }> => pb.send("/api/ai/base", { method: "POST", body: { trip, user } });
 export const aiRender = (outfit: string): Promise<{ render: string; renderFor: string }> => pb.send("/api/ai/render", { method: "POST", body: { outfit } });
 export const aiClothes = (lines: string[], colors: string[]): Promise<{ items: AiGarment[] }> =>
   pb.send("/api/ai/clothes", { method: "POST", body: { lines, colors } });
-export const aiCoord = (day: string, weather: string): Promise<{ text: string }> => pb.send("/api/ai/coord", { method: "POST", body: { day, weather } });
 export const aiPlan = (tripId: string, text: string): Promise<{ days: { n: number; items: PlanItem[] }[] }> => pb.send("/api/ai/plan", { method: "POST", body: { tripId, text } });
 export const applyPlan = (tripId: string, mode: "append" | "replace", days: { day: string; items: PlanItem[] }[]): Promise<{ added: number }> =>
   pb.send(`/api/trips/${tripId}/apply-plan`, { method: "POST", body: { mode, days } });
@@ -182,7 +182,7 @@ export async function subscribeSnapshots(tripId: string, onNew: (s: { by: string
 export interface AdminUser { id: string; username: string; name: string; role: string; perms: Perm[]; created: string; lastSeen: string; trips: number }
 export interface AuthEvent { id: string; kind: "login_ok" | "login_fail" | "signup"; user: string; name: string; username: string; ip: string; country: string; ua: string; created: string }
 
-export const adminOverview = (): Promise<{ users: AdminUser[]; events: AuthEvent[]; aiUsage?: Record<"plan" | "clothes" | "coord" | "avatar", number> }> => pb.send("/api/admin/overview", { method: "GET" });
+export const adminOverview = (): Promise<{ users: AdminUser[]; events: AuthEvent[]; aiUsage?: Record<"plan" | "clothes" | "avatar" | "face" | "render", number> }> => pb.send("/api/admin/overview", { method: "GET" });
 export const setPerms = (id: string, perms: Perm[]) => pb.send(`/api/admin/users/${id}/perms`, { method: "POST", body: { perms } });
 
 // ---- trip list ----

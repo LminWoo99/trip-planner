@@ -60,7 +60,7 @@ export default defineConfig({
           },
           // AI drawings and faces: a new drawing gets a new file name, so cache-first is safe
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/files/outfits/") || url.pathname.startsWith("/api/files/users/"),
+            urlPattern: ({ url }) => /^\/api\/files\/(outfits|users|trip_members)\//.test(url.pathname),
             handler: "CacheFirst",
             options: {
               cacheName: "drawings",

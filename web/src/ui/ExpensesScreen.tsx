@@ -40,7 +40,7 @@ export function ExpensesScreen() {
 
   return (
     <>
-      <div className="days" role="tablist" aria-label="경비 보기" style={{ borderBottom: 0 }}>
+      <div className="days" role="tablist" aria-label="경비 보기" style={{ borderBottom: 0, flex: "none" }}>
         <button className="pill" role="tab" aria-pressed={view === "spend"} aria-selected={view === "spend"} onClick={() => setView("spend")}>지출</button>
         <button className="pill" role="tab" aria-pressed={view === "settle"} aria-selected={view === "settle"} onClick={() => setView("settle")}>정산</button>
       </div>
