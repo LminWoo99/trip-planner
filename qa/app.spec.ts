@@ -835,6 +835,24 @@ test.describe("코디", () => {
     await ctx.close();
   });
 
+  test("예전에 들어온 폰도 다시 로그인하지 않고 새 권한이 반영된다", async ({ browser }, info) => {
+    test.skip(info.project.name !== "iphone", "once is enough");
+    // a phone that signed in before accounts existed: its saved record has no permissions
+    const state = JSON.parse(await import("node:fs").then((fs) => fs.readFileSync("qa/.auth/minu.json", "utf8")));
+    const auth = state.origins[0].localStorage.find((x: { name: string }) => x.name === "pocketbase_auth");
+    const saved = JSON.parse(auth.value);
+    delete saved.record.perms;
+    delete saved.record.username;
+    delete saved.record.role;
+    auth.value = JSON.stringify(saved);
+    const ctx = await browser.newContext({ ...info.project.use, storageState: state });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "코디", exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("button", { name: "글로 넣기" })).toBeVisible();
+    await ctx.close();
+  });
+
   test("코디 권한이 없으면 탭이 보이지 않는다", async ({ page, browser }, info) => {
     test.skip(info.project.name !== "iphone", "once is enough");
     // a fresh account has no permissions

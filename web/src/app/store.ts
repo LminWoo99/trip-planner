@@ -116,9 +116,25 @@ export function closeTrip() {
   void refreshTrips();
 }
 
+/**
+ * Fetches the signed-in account again: new permissions or name show up without signing in again,
+ * and the session is extended each time the app is opened.
+ */
+async function refreshAccount() {
+  if (!pb.authStore.isValid || !navigator.onLine) return;
+  try {
+    await pb.collection("users").authRefresh();
+    set({}); // re-render screens that read the account (tabs, buttons)
+  } catch (e) {
+    const status = failedStatus(e);
+    if (status === 401 || status === 403) signOut();
+  }
+}
+
 export async function start() {
   set({ trips: read<TripSummary[]>(TRIPS_KEY) });
   if (!pb.authStore.isValid) return;
+  void refreshAccount();
   // phones that used the single-trip version keep landing in that trip
   const legacy = read<{ snapshot?: TripSnapshot }>("trip-cache-v1")?.snapshot?.trip.id ?? null;
   const last = read<string>(CURRENT_KEY) ?? legacy;
@@ -141,7 +157,7 @@ export function signOut() {
 window.addEventListener("online", () => { set({ online: true }); void refresh(); });
 window.addEventListener("offline", () => set({ online: false }));
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && pb.authStore.isValid) void refresh();
+  if (document.visibilityState === "visible" && pb.authStore.isValid) { void refresh(); void refreshAccount(); }
 });
 
 // ---- trips ----
