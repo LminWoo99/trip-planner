@@ -33,6 +33,17 @@ test.describe("진입", () => {
 test.describe("일정", () => {
   test.use({ storageState: "qa/.auth/minu.json" });
 
+  test("날짜가 많아도 편집 버튼은 항상 화면에 보이고 고른 날짜도 보이게 스크롤된다", async ({ page }) => {
+    await page.goto("/");
+    const editBtn = page.getByRole("button", { name: "편집", exact: true });
+    await expect(editBtn).toBeInViewport({ ratio: 1 });
+    await openDay(page, 5);
+    await expect(page.getByRole("button", { name: /^5일차/ })).toBeInViewport();
+    await expect(editBtn).toBeInViewport({ ratio: 1 });
+    await page.waitForTimeout(400);
+    await shot(page, "15-days-edit-pinned");
+  });
+
   test("1일차 타임라인이 시간·번호·거리와 함께 보인다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 1);
