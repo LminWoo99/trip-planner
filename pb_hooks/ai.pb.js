@@ -129,24 +129,16 @@ routerAdd("GET", "/api/outfits/people", (e) => {
   for (const m of e.app.findRecordsByFilter("trip_members", "trip = {:t}", "", 0, 0, { t: tripId })) {
     const u = e.app.findRecordById("users", m.getString("user"));
     if (!(u.get("perms") || []).includes("outfits")) continue;
-    people.push({ user: u.id, name: m.getString("displayName"), avatar: u.get("look") || null });
+    people.push({ user: u.id, name: m.getString("displayName"), avatar: u.get("look") || null, face: u.getString("face") });
   }
   return e.json(200, people);
 }, $apis.requireAuth("users"));
 
 /** Saves an avatar look for yourself, or for a trip partner who also uses outfits (photo with both). */
 routerAdd("POST", "/api/avatar", (e) => {
+  const { personYouCanEdit } = require(`${__hooks}/lib/ai.js`);
   const body = e.requestInfo().body;
-  const target = String(body.user || e.auth.id);
-  const myPerms = e.auth.get("perms") || [];
-  if (!myPerms.includes("outfits")) throw new ForbiddenError("코디는 관리자가 켜 준 사람만 쓸 수 있어요.");
-  const u = e.app.findRecordById("users", target);
-  if (target !== e.auth.id) {
-    if (!(u.get("perms") || []).includes("outfits")) throw new ForbiddenError("그 사람은 코디를 쓰지 않아요.");
-    const mine = e.app.findRecordsByFilter("trip_members", "user = {:u}", "", 0, 0, { u: e.auth.id }).map((m) => m.getString("trip"));
-    const theirs = e.app.findRecordsByFilter("trip_members", "user = {:u}", "", 0, 0, { u: target }).map((m) => m.getString("trip"));
-    if (!mine.some((t) => theirs.includes(t))) throw new ForbiddenError("같은 여행의 일행만 만들어 줄 수 있어요.");
-  }
+  const u = personYouCanEdit(e, String(body.user || e.auth.id));
   const l = body.look || {};
   const hex = (c, d) => (/^#[0-9a-f]{6}$/i.test(String(c)) ? String(c) : d);
   const look = {
@@ -261,3 +253,68 @@ cronAdd("ai_usage_cleanup", "40 4 * * *", () => {
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
   $app.db().newQuery("DELETE FROM ai_usage WHERE created < {:c}").bind({ c: cutoff }).execute();
 });
+
+// ---- AI pictures: a face from a photo, then full-body drawings in each day's clothes ----
+
+/** Makes a 3D emoji-style face of one person in the photo. Nothing is stored; the client shows it and saves it if liked. */
+routerAdd("POST", "/api/ai/face", (e) => {
+  const { requirePerm, useQuota } = require(`${__hooks}/lib/ai.js`);
+  const { picture, editImage } = require(`${__hooks}/lib/image.js`);
+  requirePerm(e, "ai");
+  requirePerm(e, "outfits");
+  const body = e.requestInfo().body;
+  const photo = picture(body.image, 3 * 1024 * 1024);
+  const count = Math.max(1, Math.min(2, Number(body.count) || 1));
+  const position = Math.max(1, Math.min(count, Number(body.position) || 1));
+  const hint = String(body.summary || "").slice(0, 200);
+  const note = String(body.note || "").slice(0, 200);
+  useQuota(e.app, e.auth.id, "face");
+  const who = count > 1 ? (position === 1 ? "the person on the left" : "the person on the right") : "the person";
+  const image = editImage([photo],
+    `Create a cute 3D emoji-style avatar head of ${who} in this photo${hint ? ` (${hint})` : ""}, in the style of a smartphone 3D emoji avatar `
+      + "(glossy soft 3D render, big rounded head, simple friendly features, soft studio lighting). Keep their real hairstyle, face shape and "
+      + "glasses only if they actually wear glasses, so it resembles them. Front view, friendly natural smile, head and neck only, "
+      + `on a plain solid white background, no text.${note ? ` Also: ${note}` : ""}`,
+    "1024x1024");
+  return e.json(200, { image });
+}, $apis.requireAuth("users"));
+
+/** Saves a face made by /api/ai/face for yourself or your trip partner. */
+routerAdd("POST", "/api/avatar/face", (e) => {
+  const { personYouCanEdit } = require(`${__hooks}/lib/ai.js`);
+  const { picture, fileFromDataUrl } = require(`${__hooks}/lib/image.js`);
+  const body = e.requestInfo().body;
+  const u = personYouCanEdit(e, String(body.user || e.auth.id));
+  u.set("face", fileFromDataUrl(picture(body.image), "face.webp"));
+  e.app.saveNoValidate(u);
+  return e.json(200, { face: u.getString("face") });
+}, $apis.requireAuth("users"));
+
+/** Draws a person's full body in their outfit for that day, from their saved face. */
+routerAdd("POST", "/api/ai/render", (e) => {
+  const { requirePerm, useQuota } = require(`${__hooks}/lib/ai.js`);
+  const { editImage, fileFromDataUrl, recordFileDataUrl } = require(`${__hooks}/lib/image.js`);
+  requirePerm(e, "ai");
+  requirePerm(e, "outfits");
+  let outfit;
+  try { outfit = e.app.findRecordById("outfits", String(e.requestInfo().body.outfit || "")); } catch (_) { throw new NotFoundError("코디를 찾지 못했어요."); }
+  try { e.app.findFirstRecordByFilter("trip_members", "trip = {:t} && user = {:u}", { t: outfit.getString("trip"), u: e.auth.id }); } catch (_) { throw new ForbiddenError("이 여행의 일행만 그릴 수 있어요."); }
+  const items = JSON.parse(outfit.getString("items") || "[]").filter((g) => g && g.text).map((g) => String(g.text).slice(0, 60)).slice(0, 12);
+  if (!items.length) throw new BadRequestError("입을 옷을 먼저 정해 주세요.");
+  const person = e.app.findRecordById("users", outfit.getString("user"));
+  const face = recordFileDataUrl(e.app, person, "face");
+  if (!face) throw new BadRequestError("얼굴을 먼저 만들어 주세요.");
+  useQuota(e.app, e.auth.id, "render");
+  const look = JSON.parse(person.getString("look") || "{}") || {};
+  const build = { slim: "slim", broad: "broad-shouldered" }[look.build] || "average";
+  const image = editImage([face],
+    "Full-body 3D emoji-style avatar of this exact person (same face, hair and glasses as the reference picture), natural adult body proportions "
+      + `with the head about one sixth of the height, ${build} build, standing straight, front view, arms relaxed at the sides, wearing exactly: ${items.join(", ")}. `
+      + "Soft glossy 3D render like a smartphone emoji avatar, soft studio light, plain solid white background, "
+      + "the whole body from hair to shoes visible and centered with a small margin, no text.",
+    "1024x1536");
+  outfit.set("render", fileFromDataUrl(image, "render.webp"));
+  outfit.set("renderFor", items.join("\n"));
+  e.app.saveNoValidate(outfit);
+  return e.json(200, { render: outfit.getString("render"), renderFor: outfit.getString("renderFor") });
+}, $apis.requireAuth("users"));

@@ -1,4 +1,5 @@
 // Stand-in for the OpenAI Responses API during E2E tests: answers by the requested schema name.
+// /images/edits answers with a small fixed picture.
 import { createServer } from "node:http";
 
 const answers = {
@@ -20,11 +21,18 @@ const answers = {
   ] }),
 };
 
+const PICTURE = "UklGRgQBAABXRUJQVlA4IPgAAADwCACdASpAAGAAPrVOoEonJKMhsViYAOAWiWUA0ExxR56UJK34BmyXxHCbMhIZQxUTVmEAvgmBKhpH9NKr6PqAa07D6lPogAcjOSiwTuAeEAD+9xy/FKfuRIWNoqxbYYk2qo6K15+v8w8ULW4tibwgOiByDPCGnNc1aATv/Q4mwkrTj+bYPeWfF5WZRuzJZFV+hmyr+B8vbR8AldZ/xjhz6x/Um2Db3/Sjsmth6Q5d86KsQnleI+MzP/RgSZ/B1hIfX8MiRc3QjOqOhLR1qWB3Mg43tDOlvrg27H23x2ISFlwOwUFufw8/E5uvBP/W3Y3GyOahtAAAAA==";
+
 createServer((req, res) => {
   let raw = "";
   req.on("data", (c) => { raw += c; });
   req.on("end", () => {
     const body = JSON.parse(raw || "{}");
+    if (req.url.endsWith("/images/edits")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ data: [{ b64_json: PICTURE }], prompt: body.prompt }));
+      return;
+    }
     const name = body.text?.format?.name;
     const out = answers[name] ? answers[name](body) : {};
     res.writeHead(200, { "content-type": "application/json" });

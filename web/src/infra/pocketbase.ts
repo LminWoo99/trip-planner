@@ -118,13 +118,18 @@ export const inviteUrl = (token: string) => `${location.origin}/j/${token}`;
 
 // ---- outfits ----
 
-export interface OutfitPerson { user: string; name: string; avatar: Look | null }
-export interface OutfitRec { id: string; day: string; user: string; items: Garment[]; likedBy: string[] }
+/** face: file name of the AI face (empty until made) */
+export interface OutfitPerson { user: string; name: string; avatar: Look | null; face: string }
+/** render: AI full-body drawing file; renderFor: the clothes it was drawn with (see renderKey) */
+export interface OutfitRec { id: string; day: string; user: string; items: Garment[]; likedBy: string[]; render: string; renderFor: string }
 
-const toOutfit = (r: RecordModel): OutfitRec => ({ id: r.id, day: r.day, user: r.user, items: Array.isArray(r.items) ? r.items : [], likedBy: Array.isArray(r.likedBy) ? r.likedBy : [] });
+const toOutfit = (r: RecordModel): OutfitRec => ({
+  id: r.id, day: r.day, user: r.user, items: Array.isArray(r.items) ? r.items : [], likedBy: Array.isArray(r.likedBy) ? r.likedBy : [],
+  render: r.render ?? "", renderFor: r.renderFor ?? "",
+});
 
 export const outfitPeople = async (tripId: string): Promise<OutfitPerson[]> =>
-  ((await pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" })) as OutfitPerson[]).map((p) => ({ ...p, avatar: normalizeLook(p.avatar) }));
+  ((await pb.send(`/api/outfits/people?trip=${encodeURIComponent(tripId)}`, { method: "GET" })) as OutfitPerson[]).map((p) => ({ ...p, avatar: normalizeLook(p.avatar), face: p.face ?? "" }));
 export const saveLook = (look: Look, user?: string) => pb.send("/api/avatar", { method: "POST", body: { look, user } });
 export const listOutfits = async (tripId: string): Promise<OutfitRec[]> =>
   (await pb.collection("outfits").getFullList({ filter: pb.filter("trip = {:t}", { t: tripId }) })).map(toOutfit);
@@ -145,6 +150,11 @@ export interface AiPerson { position: number; body: "m" | "f"; build: Look["buil
 export interface AiGarment extends Features { text: string; slot: string; label: string; color: string }
 
 export const aiAvatar = (image: string, hairStyles: string[]): Promise<{ people: AiPerson[] }> => pb.send("/api/ai/avatar", { method: "POST", body: { image, hairStyles } });
+/** A 3D emoji-style face of one person in the photo (count: people in it, position: 1 = left). Not stored until saveFace. */
+export const aiFace = (image: string, count: number, position: number, summary: string, note = ""): Promise<{ image: string }> =>
+  pb.send("/api/ai/face", { method: "POST", body: { image, count, position, summary, note } });
+export const saveFace = (image: string, user?: string): Promise<{ face: string }> => pb.send("/api/avatar/face", { method: "POST", body: { image, user } });
+export const aiRender = (outfit: string): Promise<{ render: string; renderFor: string }> => pb.send("/api/ai/render", { method: "POST", body: { outfit } });
 export const aiClothes = (lines: string[], colors: string[]): Promise<{ items: AiGarment[] }> =>
   pb.send("/api/ai/clothes", { method: "POST", body: { lines, colors } });
 export const aiCoord = (day: string, weather: string): Promise<{ text: string }> => pb.send("/api/ai/coord", { method: "POST", body: { day, weather } });
