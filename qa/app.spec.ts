@@ -798,3 +798,109 @@ test.describe("지금 모드·티켓", () => {
     await context.setOffline(false);
   });
 });
+
+test.describe("코디", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+
+  test("권한이 있으면 코디 탭이 보이고 사진으로 둘의 아바타를 만들고 글자로 옷을 입힌다", async ({ page, browser }, info) => {
+    test.skip(info.project.name !== "iphone", "writes outfits; run once");
+    await page.goto("/");
+    await page.getByRole("button", { name: "코디", exact: true }).click();
+    await expect(page.getByText("내 아바타부터 만들어요")).toBeVisible();
+    await shot(page, "100-outfit-start");
+    await page.locator(".avs-choice input[type=file]").setInputFiles("qa/fixtures/photo.png");
+    await expect(page.getByText("2명을 찾았어요")).toBeVisible({ timeout: 20000 });
+    await shot(page, "101-outfit-found");
+    await page.getByRole("button", { name: "이렇게 만들기" }).click();
+    await page.getByRole("button", { name: "이 아바타로 할게요" }).click();
+    // dress up with text; an unknown word goes to the (fake) AI on save
+    await page.getByRole("button", { name: "내 코디 정하기" }).click();
+    await page.locator("#outfit-text").fill("네이비 바람막이\n검정 등산바지\n트레킹화\n꽈배기 스웨터 같은 거");
+    await expect(page.locator(".of-parsed li").first()).toContainText("겉옷");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.locator(".of-list").first()).toContainText("네이비 바람막이");
+    // partner sees it and hearts it
+    const ctx = await browser.newContext({ ...info.project.use, storageState: "qa/.auth/ryeojin.json" });
+    const her = await ctx.newPage();
+    await her.goto("/");
+    await her.getByRole("button", { name: "코디", exact: true }).click();
+    await expect(her.locator(".of-list").nth(1)).toContainText("네이비 바람막이");
+    await her.getByRole("button", { name: "잘 어울려요" }).click();
+    await expect(page.getByText("려진이 잘 어울린대요")).toBeVisible({ timeout: 10000 });
+    await page.getByRole("button", { name: "코디 한마디 듣기" }).click();
+    await expect(page.locator(".of-coord p")).toContainText("방수 신발");
+    await page.getByRole("checkbox", { name: "트레킹화 챙김" }).click();
+    await expect(page.locator(".of-packed")).toContainText("1 / 4");
+    await shot(page, "102-outfit-pair");
+    await ctx.close();
+  });
+
+  test("코디 권한이 없으면 탭이 보이지 않는다", async ({ page, browser }, info) => {
+    test.skip(info.project.name !== "iphone", "once is enough");
+    // a fresh account has no permissions
+    const ctx = await browser.newContext({ ...info.project.use, storageState: { cookies: [], origins: [] } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    await p.getByRole("button", { name: "가입하기" }).click();
+    await p.locator("#su-id").fill("qa_noperm");
+    await p.locator("#su-name").fill("권한없음");
+    await p.locator("#su-pw").fill("trip2026!");
+    await p.getByRole("button", { name: "가입하기", exact: true }).click();
+    await p.getByRole("button", { name: "새 여행" }).click();
+    await p.locator("#trip-title").fill("권한 없는 여행");
+    await p.locator("#trip-start").fill("2026-12-20");
+    await p.locator("#trip-end").fill("2026-12-21");
+    await p.getByRole("button", { name: "만들기" }).click();
+    await expect(p.getByRole("heading", { name: "권한 없는 여행" })).toBeVisible();
+    await expect(p.getByRole("button", { name: "코디", exact: true })).toHaveCount(0);
+    await expect(p.getByRole("button", { name: "글로 넣기" })).toHaveCount(0);
+    await ctx.close();
+    void page;
+  });
+});
+
+test.describe("글로 일정 넣기", () => {
+  test.use({ storageState: "qa/.auth/minu.json" });
+
+  test("글을 AI가 날짜별로 나누고 미리보기에서 고른 것만 넣으며, 바꾸기는 한 번 더 묻고 되돌릴 수 있다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "changes the shared schedule; run once");
+    await page.goto("/");
+    await openDay(page, 2);
+    const before = await page.locator(".tl .tl-row").count();
+    await page.getByRole("button", { name: "글로 넣기" }).click();
+    await page.locator("#ai-plan-text").fill("둘째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜");
+    await page.getByRole("button", { name: "일정으로 나누기" }).click();
+    const sheet = page.getByRole("dialog", { name: "이렇게 넣을게요" });
+    await expect(sheet.getByText("호안끼엠 호수 산책")).toBeVisible({ timeout: 30000 });
+    await shot(page, "103-ai-preview");
+    // add only the walk
+    await sheet.getByRole("checkbox", { name: /저녁: 분짜/ }).click();
+    await sheet.getByRole("button", { name: "1개 추가" }).click();
+    await expect(page.getByText("호안끼엠 호수 산책").first()).toBeVisible();
+    await expect(page.locator(".tl .tl-row")).toHaveCount(before + 1);
+
+    // replace asks first, and history can bring the day back
+    await page.getByRole("button", { name: "글로 넣기" }).click();
+    await page.locator("#ai-plan-text").fill("둘째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜");
+    await page.getByRole("radio", { name: "그 날 일정 바꾸기" }).click();
+    await page.getByRole("button", { name: "일정으로 나누기" }).click();
+    await page.getByRole("button", { name: /바꿔 넣기/ }).click();
+    const confirm = page.getByRole("alertdialog", { name: "일정 바꾸기 확인" });
+    await expect(confirm).toContainText("2일차에 있는 일정을 바꿀까요?");
+    await shot(page, "104-ai-confirm");
+    await confirm.getByRole("button", { name: "바꾸기" }).click();
+    await expect(page.locator(".tl .tl-row")).toHaveCount(2);
+    await page.getByRole("button", { name: "더보기", exact: true }).click();
+    await page.getByRole("button", { name: /되돌리기 기록/ }).click();
+    const hist = page.getByRole("dialog", { name: "되돌리기 기록" });
+    await expect(hist.getByText(/민우가 AI로 2일차 일정을 바꿈/)).toBeVisible();
+    await shot(page, "105-history");
+    await hist.getByRole("button", { name: "되돌리기" }).first().click();
+    await hist.getByRole("button", { name: "되돌리기" }).first().click();
+    await expect(hist.getByText(/되돌리기 직전 상태/)).toBeVisible();
+    await hist.getByRole("button", { name: "닫기" }).click();
+    await page.getByRole("button", { name: "일정", exact: true }).click();
+    await openDay(page, 2);
+    await expect(page.locator(".tl .tl-row")).toHaveCount(before + 1);
+  });
+});
