@@ -6,6 +6,7 @@ import { tripToday, useNow } from "./useNow";
 import { TicketStrip } from "./Tickets";
 import { PhotoPicker } from "./Photos";
 import { shrink } from "../infra/photos";
+import { me } from "../infra/pocketbase";
 import { create, remove, signOut, update, updateTrip, useApp } from "../app/store";
 import { attempt, toast } from "./toast";
 import { Sheet } from "./Sheet";
@@ -33,6 +34,7 @@ async function copy(text: string, done: string) {
 export function MoreScreen() {
   const { snapshot } = useApp();
   const now = useNow();
+  const account = me();
   const todayDate = snapshot ? tripToday(snapshot.days, now).day?.date ?? null : null;
   const isToday = (b: Booking) => !!todayDate && !!snapshot && bookingDate(b, snapshot.trip.start) === todayDate;
   const [editing, setEditing] = useState<Booking | "new" | null>(null);
@@ -99,6 +101,8 @@ export function MoreScreen() {
               <div className="li-sub num" style={{ paddingRight: 8 }}>{snapshot.items.filter((i) => i.place && i.lat === null).length + snapshot.places.filter((p) => p.lat === null).length}곳</div>
             </button>
             <div className="li"><div className="li-sub" style={{ marginTop: 0 }}>버전</div><div className="li-sub num" id="build-id" style={{ paddingRight: 8, marginTop: 0 }}>{__BUILD_ID__}</div></div>
+            {account && <div className="li"><div className="li-title">{account.name}</div><div className="li-sub" style={{ paddingRight: 8, marginTop: 0 }}>@{account.username}</div></div>}
+            {account?.admin && <a className="li" href="/admin" style={{ textDecoration: "none", color: "inherit" }}><div className="li-title">관리자 페이지</div><div className="li-sub" style={{ paddingRight: 8 }}>가입자·권한·접속 기록</div></a>}
             <button className="li" onClick={signOut}><div className="li-title" style={{ display: "flex", gap: 6, alignItems: "center" }}><LogOut className="icon" />이 폰에서 나가기</div></button>
           </div>
         </div>

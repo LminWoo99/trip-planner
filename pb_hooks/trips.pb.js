@@ -29,15 +29,13 @@ routerAdd("POST", "/api/trips", (e) => {
     tx.save(trip);
     tripId = trip.id;
 
-    const membersCol = tx.findCollectionByNameOrId("trip_members");
-    for (const u of tx.findAllRecords("users")) {
-      const m = new Record(membersCol);
-      m.set("trip", trip.id);
-      m.set("user", u.id);
-      m.set("displayName", u.getString("name") || u.getString("email"));
-      m.set("role", u.id === e.auth.id ? "owner" : "member");
-      tx.save(m);
-    }
+    // only the creator joins; others come in through an invite link and the owner's approval
+    const m = new Record(tx.findCollectionByNameOrId("trip_members"));
+    m.set("trip", trip.id);
+    m.set("user", e.auth.id);
+    m.set("displayName", e.auth.getString("name") || e.auth.getString("username"));
+    m.set("role", "owner");
+    tx.save(m);
 
     const daysCol = tx.findCollectionByNameOrId("days");
     for (let i = 0; i < count; i++) {

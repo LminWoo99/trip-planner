@@ -1,7 +1,8 @@
 import { lazy, Suspense, useSyncExternalStore } from "react";
 import { pb } from "../infra/pocketbase";
 import { start, useApp } from "../app/store";
-import { Gate } from "./Gate";
+import { Login } from "./Login";
+const AdminScreen = lazy(() => import("./AdminScreen").then((m) => ({ default: m.AdminScreen })));
 const Shell = lazy(() => import("./Shell").then((m) => ({ default: m.Shell })));
 const TripList = lazy(() => import("./TripList").then((m) => ({ default: m.TripList })));
 import { Toast } from "./toast";
@@ -15,9 +16,11 @@ export function App() {
   const { tripId } = useApp();
   return (
     <>
-      {authed
-        ? <Suspense fallback={null}>{tripId ? <Shell key={tripId} /> : <TripList />}</Suspense>
-        : <Gate onEnter={() => void start()} />}
+      {!authed
+        ? <Login onEnter={() => void start()} />
+        : location.pathname.startsWith("/admin")
+          ? <Suspense fallback={null}><AdminScreen /></Suspense>
+          : <Suspense fallback={null}>{tripId ? <Shell key={tripId} /> : <TripList />}</Suspense>}
       <Toast />
       <UpdateBanner />
     </>

@@ -13,7 +13,8 @@ if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -d node_modules ]; then
 fi
 
 npm run build            # → pb_public/
-pm2 restart trip-planner # pb_migrations are applied on start
+# reload the config so new .env values (e.g. OPENAI_*) reach the process; migrations run on start
+pm2 startOrRestart ecosystem.config.cjs --update-env
 pm2 status trip-planner
 
 sleep 2
