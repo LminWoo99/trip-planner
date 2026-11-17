@@ -95,3 +95,24 @@ export function gmapsRoute(stops: readonly MapTarget[]): string | null {
   }
   return url;
 }
+
+/** A real travel time for one mode, as far as the timeline needs it. */
+export interface LegTime {
+  readonly minutes: number;
+  readonly meters: number;
+}
+
+export type PillMode = "walk" | "transit" | "car";
+
+/**
+ * The practical way to show a leg on the timeline from real times:
+ * walk when it's a short walk, transit when it's not much slower than a car, otherwise car.
+ */
+export function pickLegMode(times: { walk?: LegTime | null; transit?: LegTime | null; car?: LegTime | null }): { mode: PillMode; time: LegTime } | null {
+  const { walk, transit, car } = times;
+  if (walk && walk.minutes <= 20) return { mode: "walk", time: walk };
+  if (transit && (!car || transit.minutes <= car.minutes * 1.5)) return { mode: "transit", time: transit };
+  if (car) return { mode: "car", time: car };
+  if (walk) return { mode: "walk", time: walk };
+  return transit ? { mode: "transit", time: transit } : null;
+}
