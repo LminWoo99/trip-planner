@@ -1,5 +1,13 @@
 import { execSync } from "node:child_process";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Opens the item form from the + button; people with the AI permission first pick "직접 추가". */
+async function openItemForm(page: Page) {
+  await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+  const direct = page.getByRole("button", { name: /직접 추가/ });
+  await direct.or(page.locator("#item-title")).first().waitFor();
+  if (await direct.isVisible()) await direct.click();
+}
 
 // A deploy reaches an open app as an offer: the screen never reloads by itself.
 test.use({ storageState: "qa/.auth/minu.json" });
@@ -41,7 +49,7 @@ test("입력 시트를 연 상태에서도 입력값은 그대로 두고 안내�
   await page.goto("/");
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
-  await page.getByRole("button", { name: "일정 추가", exact: true }).click();
+  await openItemForm(page);
   await page.getByLabel("제목").fill("쓰는 중인 일정");
   await deployWhileOpen(page);
   await expect(page.getByText("새 버전이 있어요")).toBeVisible({ timeout: 30_000 });
