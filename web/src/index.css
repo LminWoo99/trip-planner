@@ -312,7 +312,9 @@ a.c-meta span { color: var(--ink2); }
 .e-fork-head .e-title { font-weight: 700; }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin: 4px 10px 4px 12px; background: var(--soft); border-radius: 10px; padding: 3px; }
 .seg button { height: 36px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink3); }
-.seg button[aria-selected="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.seg button[aria-selected="true"], .seg button[aria-checked="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.field .seg { margin: 0; }
+.field .seg button { height: 40px; font-size: 14px; }
 .e-sub { display: flex; flex-direction: column; }
 .e-step { display: grid; grid-template-columns: 28px 22px minmax(0, 1fr) 44px; gap: 8px; align-items: center; padding-left: 12px; background: var(--bg); position: relative; text-align: left; }
 .e-step + .e-step { border-top: 1px solid var(--line); }

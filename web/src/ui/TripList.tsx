@@ -3,6 +3,8 @@ import { ChevronRight, Plus } from "lucide-react";
 import { newTrip, openTrip, useApp } from "../app/store";
 import { nightsLabel, sortTrips, tripStatus, type TripSummary } from "../domain/trips";
 import { myInvites, pb } from "../infra/pocketbase";
+import { COUNTRIES, POPULAR, formatMoney } from "../domain/countries";
+import { todaysKrwRates } from "../infra/rates";
 import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
 import { shortDay, todayIso } from "./format";
@@ -77,13 +79,23 @@ function NewTripSheet({ onClose }: { onClose: () => void }) {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [busy, setBusy] = useState(false);
+  const [region, setRegion] = useState<"abroad" | "domestic">("abroad");
+  const [country, setCountry] = useState("VN");
+  const [allCountries, setAllCountries] = useState(false);
+  const [rates, setRates] = useState<Record<string, number> | null>(null);
+  useEffect(() => { void todaysKrwRates([...COUNTRIES.map((c) => c.currency)]).then(setRates); }, []);
+  const picked = COUNTRIES.find((c) => c.code === country)!;
+  const localKrw = rates?.[picked.currency] ?? picked.approxKrw;
   const valid = title.trim() && start && end && end >= start;
   const preview = valid ? nightsLabel({ start, end }) : null;
   const days = valid ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1 : 0;
 
   async function save() {
     setBusy(true);
-    const ok = await attempt(() => newTrip(title.trim(), start, end), "새 여행을 만들었어요");
+    const place = region === "domestic"
+      ? { region, currency: "KRW", localKrw: 1, usdKrw: rates?.USD ?? 1395 }
+      : { region, currency: picked.currency, localKrw, usdKrw: rates?.USD ?? 1395 };
+    const ok = await attempt(() => newTrip(title.trim(), start, end, place), "새 여행을 만들었어요");
     setBusy(false);
     if (ok) onClose();
   }
@@ -91,11 +103,30 @@ function NewTripSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="새 여행" onClose={onClose} footer={<button className="btn primary" disabled={!valid || busy || days > 60} onClick={save}>만들기</button>}>
       <label className="field"><span>여행 이름</span><input id="trip-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 도쿄 여행" autoFocus /></label>
+      <div className="field">
+        <span>어디로 가요?</span>
+        <div className="seg" role="radiogroup" aria-label="국내 또는 해외">
+          {(["domestic", "abroad"] as const).map((r) => <button key={r} type="button" role="radio" aria-checked={region === r} onClick={() => setRegion(r)}>{r === "domestic" ? "국내" : "해외"}</button>)}
+        </div>
+      </div>
+      {region === "abroad" && (
+        <div className="field">
+          <span>나라</span>
+          <div className="chips">
+            {COUNTRIES.filter((c) => allCountries || POPULAR.includes(c.code) || c.code === country).map((c) => (
+              <button key={c.code} type="button" className="chip" aria-pressed={country === c.code} onClick={() => setCountry(c.code)}>{c.name}</button>
+            ))}
+            {!allCountries && <button type="button" className="chip" onClick={() => setAllCountries(true)}>더 보기</button>}
+          </div>
+          <small className="field-hint">{picked.money}({picked.sign.trim()})으로 기록해요. {rates?.[picked.currency] ? "오늘" : "대략적인"} 환율 {formatMoney(1, picked.currency)} = {localKrw.toLocaleString("ko-KR")}원 (나중에 고칠 수 있어요)</small>
+        </div>
+      )}
+      {region === "domestic" && <small className="field-hint">국내 여행은 원으로만 기록해요. 만든 뒤에는 국내/해외를 바꿀 수 없어요.</small>}
       <div className="row2">
         <label className="field"><span>출발</span><input id="trip-start" className="input" type="date" value={start} onChange={(e) => { setStart(e.target.value); if (!end || e.target.value > end) setEnd(e.target.value); }} /></label>
         <label className="field"><span>도착</span><input id="trip-end" className="input" type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} /></label>
       </div>
-      {preview && days <= 60 && <p className="note-box"><b>{preview}</b>이에요. 1일차부터 {days}일차까지 빈 일정이 만들어지고, 둘 다 같이 볼 수 있어요. 날씨·환율은 만든 뒤에 각 날짜와 설정에서 바꿀 수 있어요.</p>}
+      {preview && days <= 60 && <p className="note-box"><b>{preview}</b>이에요. 1일차부터 {days}일차까지 빈 일정이 만들어지고, 초대한 일행과 같이 볼 수 있어요.</p>}
       {days > 60 && <p className="note-box" style={{ color: "var(--danger)" }}>여행 기간은 60일까지 만들 수 있어요.</p>}
     </Sheet>
   );

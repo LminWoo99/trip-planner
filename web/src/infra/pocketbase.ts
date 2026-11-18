@@ -19,7 +19,8 @@ const num = (v: unknown) => (typeof v === "number" && v !== 0 ? v : null);
 
 export const toTrip = (r: RecordModel): Trip => ({
   id: r.id, title: r.title, start: date(r.start), end: date(r.end),
-  vndKrw: r.vndKrw || 0.053, usdKrw: r.usdKrw || 1395, budget: r.budget || 0,
+  region: r.region === "domestic" ? "domestic" : "abroad", currency: r.currency || "VND",
+  localKrw: r.localKrw || r.vndKrw || 0.053, usdKrw: r.usdKrw || 1395, budget: r.budget || 0,
 });
 export const toMember = (r: RecordModel): Member => ({ id: r.id, user: r.user, displayName: r.displayName, role: r.role === "owner" ? "owner" : "member" });
 
@@ -203,8 +204,9 @@ export async function listTrips(): Promise<TripSummary[]> {
   });
 }
 
-export async function createTrip(title: string, start: string, end: string): Promise<string> {
-  const res = await pb.send("/api/trips", { method: "POST", body: { title, start, end } });
+export interface TripPlace { region: "domestic" | "abroad"; currency: string; localKrw: number; usdKrw: number }
+export async function createTrip(title: string, start: string, end: string, place: TripPlace): Promise<string> {
+  const res = await pb.send("/api/trips", { method: "POST", body: { title, start, end, ...place } });
   return res.id;
 }
 

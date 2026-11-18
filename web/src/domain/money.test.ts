@@ -4,7 +4,7 @@ import { buildDay, effectiveItems } from "./timeline";
 import type { Group, Item } from "./types";
 import type { Expense, Member } from "./types";
 
-const rates = { vndKrw: 0.053, usdKrw: 1395 };
+const rates = { local: "VND", localKrw: 0.053, usdKrw: 1395 };
 const minu: Member = { id: "m1", user: "u1", displayName: "민우" };
 const ryeojin: Member = { id: "m2", user: "u2", displayName: "려진" };
 
@@ -163,5 +163,29 @@ describe("일정 예상 비용", () => {
     ];
     // when / then
     expect(spentOnDay(expenses, "d2", rates)).toBe(10_000);
+  });
+});
+
+describe("toKrw (나라별 돈)", () => {
+  it("일본 여행의 엔은 그 여행 환율로 원화 환산한다", () => {
+    // given
+    const yen = { local: "JPY", localKrw: 9.2, usdKrw: 1395 };
+
+    // when
+    const krw = toKrw(1_000, "JPY", yen);
+
+    // then
+    expect(krw).toBe(9_200);
+  });
+
+  it("여행 나라가 아닌 돈은 추측하지 않고 0으로 둔다", () => {
+    // given
+    const yen = { local: "JPY", localKrw: 9.2, usdKrw: 1395 };
+
+    // when
+    const krw = toKrw(100_000, "VND", yen);
+
+    // then
+    expect(krw).toBe(0);
   });
 });

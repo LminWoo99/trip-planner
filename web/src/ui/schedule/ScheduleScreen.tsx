@@ -3,7 +3,7 @@ import { ArrowUpDown, CalendarArrowUp, Check, Copy, PenLine, Plus, Split, Trash2
 import type { BranchKey, Group, Item, Booking, Day } from "../../domain/types";
 import { buildDay, effectiveBranch, effectiveItems } from "../../domain/timeline";
 import { isSameSpot, type LatLng } from "../../domain/geo";
-import { plannedCost, spentOnDay } from "../../domain/money";
+import { plannedCost, ratesOf, spentOnDay } from "../../domain/money";
 import { remove, update, useApp } from "../../app/store";
 import { weatherFor } from "../../infra/weather";
 import { attempt } from "../toast";
@@ -89,7 +89,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
   if (!snapshot || !day) return <div className="screen"><div className="empty">일정이 없어요</div></div>;
 
   const members = snapshot.members;
-  const rates = { vndKrw: snapshot.trip.vndKrw, usdKrw: snapshot.trip.usdKrw };
+  const rates = ratesOf(snapshot.trip);
   const planned = plannedCost(effective, rates);
   const spent = spentOnDay(snapshot.expenses, day.id, rates);
   const me = members.find((m) => m.id === meId);
