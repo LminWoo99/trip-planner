@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { RecordModel } from "pocketbase";
 import type { TripSnapshot } from "../domain/types";
 import type { TripSummary } from "../domain/trips";
-import { changeTripDates, COLLECTIONS, createTrip, deleteTrip, listTrips, loadSnapshot, mappers, pb, subscribeTrip, type TripCollection } from "../infra/pocketbase";
+import { changeTripDates, COLLECTIONS, createTrip, deleteTrip, listTrips, loadSnapshot, mappers, pb, subscribeTrip, type TripCollection, type TripPlace } from "../infra/pocketbase";
 
 // App state: the trip list, the open trip's snapshot, and sync status.
 // Each trip's last good snapshot (and the list) is cached so they can be read offline.
@@ -162,9 +162,9 @@ document.addEventListener("visibilitychange", () => {
 
 // ---- trips ----
 
-export async function newTrip(title: string, startDate: string, endDate: string) {
+export async function newTrip(title: string, startDate: string, endDate: string, place: TripPlace) {
   if (!navigator.onLine) throw new OfflineError();
-  const id = await createTrip(title, startDate, endDate);
+  const id = await createTrip(title, startDate, endDate, place);
   await refreshTrips();
   await openTrip(id);
 }

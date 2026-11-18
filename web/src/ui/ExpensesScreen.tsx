@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Plus, PiggyBank } from "lucide-react";
-import type { Currency, Expense, Split } from "../domain/types";
-import { depositsByMember, formatKrw, poolBalance, settle, toKrw, totalSpent, totalsByCategory } from "../domain/money";
+import type { Currency, Expense, Split, Trip } from "../domain/types";
+import { currenciesFor, formatMoney, moneyOf } from "../domain/countries";
+import { depositsByMember, formatKrw, poolBalance, ratesOf, settle, toKrw, totalSpent, totalsByCategory } from "../domain/money";
 import { create, remove, update, useApp } from "../app/store";
 import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
@@ -9,12 +10,16 @@ import { shortDay } from "./format";
 import { tripToday } from "./useNow";
 
 const CATS = ["식비", "교통", "숙소", "투어", "쇼핑", "기타"];
-const CUR_SIGN: Record<Currency, string> = { VND: "₫", KRW: "원", USD: "$" };
 const SPLIT_LABEL: Record<Split, string> = { half: "반반", payer: "낸 사람 것", other: "상대 것 대신 결제" };
 const POOL = "pool";
 
-const formatAmount = (n: number, cur: Currency) =>
-  cur === "USD" ? `$${n.toLocaleString("en-US")}` : `${n.toLocaleString("ko-KR")}${CUR_SIGN[cur]}`;
+const formatAmount = (n: number, cur: Currency) => formatMoney(n, cur);
+/** the money chips on a trip: local, won, dollars (won only at home) */
+const CurChips = ({ trip, cur, onPick }: { trip: Trip; cur: Currency; onPick: (c: Currency) => void }) => {
+  const list = currenciesFor(trip);
+  if (list.length < 2) return null;
+  return <div className="chips" style={{ flexWrap: "nowrap" }}>{list.map((c) => <button key={c} type="button" className="chip" aria-pressed={cur === c} onClick={() => onPick(c)}>{moneyOf(c).sign.trim()}</button>)}</div>;
+};
 
 export function ExpensesScreen() {
   const { snapshot, meId } = useApp();
@@ -25,7 +30,7 @@ export function ExpensesScreen() {
   if (!snapshot) return null;
 
   const { trip, members, expenses, days } = snapshot;
-  const rates = { vndKrw: trip.vndKrw, usdKrw: trip.usdKrw };
+  const rates = ratesOf(trip);
   const spends = expenses.filter((e) => e.kind !== "deposit");
   const total = totalSpent(expenses, rates);
   const byCat = [...totalsByCategory(expenses, rates)].sort((a, b) => b[1] - a[1]);
@@ -105,14 +110,16 @@ export function ExpensesScreen() {
               </div>
             ))}
 
-            <div className="group-label" style={{ marginTop: 18 }}><span>동 → 원 계산기</span><span className="num" style={{ fontWeight: 500, color: "var(--ink3)" }}>1₫ = {trip.vndKrw}원</span></div>
+            {trip.region === "abroad" && <>
+            <div className="group-label" style={{ marginTop: 18 }}><span>{moneyOf(trip.currency).money} → 원 계산기</span><span className="num" style={{ fontWeight: 500, color: "var(--ink3)" }}>{formatMoney(1, trip.currency)} = {trip.localKrw}원</span></div>
             <div className="list" style={{ padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
-              <input id="calc-vnd" className="input num" inputMode="numeric" value={calc} placeholder="100,000" aria-label="동 금액"
+              <input id="calc-vnd" className="input num" inputMode="numeric" value={calc} placeholder="100,000" aria-label={`${moneyOf(trip.currency).money} 금액`}
                 onChange={(e) => { const d = e.target.value.replace(/\D/g, ""); setCalc(d ? Number(d).toLocaleString("ko-KR") : ""); }} />
               <span className="num" style={{ fontWeight: 700, whiteSpace: "nowrap", minWidth: 96, textAlign: "right" }}>
-                {calc ? formatKrw(Number(calc.replace(/,/g, "")) * trip.vndKrw) : "0원"}
+                {calc ? formatKrw(Number(calc.replace(/,/g, "")) * trip.localKrw) : "0원"}
               </span>
             </div>
+            </>}
           </div>
         ) : (
           <SettleView onEditDeposit={(e) => setDepositing(e)} />
@@ -129,7 +136,7 @@ function SettleView({ onEditDeposit }: { onEditDeposit: (e: Expense) => void }) 
   const { snapshot } = useApp();
   if (!snapshot) return null;
   const { trip, members, expenses } = snapshot;
-  const rates = { vndKrw: trip.vndKrw, usdKrw: trip.usdKrw };
+  const rates = ratesOf(trip);
   const result = settle(expenses, members, rates);
   const deposits = expenses.filter((e) => e.kind === "deposit");
   const byMember = depositsByMember(expenses, rates);
@@ -186,7 +193,7 @@ function ExpenseSheet({ expense, defaultPayer, onClose }: { expense: Expense | n
   const todayDay = snapshot ? tripToday(snapshot.days, new Date()).day?.id ?? "" : "";
   const [title, setTitle] = useState(expense?.title ?? "");
   const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
-  const [cur, setCur] = useState<Currency>(expense?.cur ?? "VND");
+  const [cur, setCur] = useState<Currency>(expense?.cur ?? snapshot!.trip.currency);
   const [payer, setPayer] = useState(expense ? (expense.fromPool ? POOL : expense.payer ?? defaultPayer) : defaultPayer);
   const [split, setSplit] = useState<Split>(expense?.split ?? "half");
   const [cat, setCat] = useState(expense?.cat ?? "식비");
@@ -195,7 +202,7 @@ function ExpenseSheet({ expense, defaultPayer, onClose }: { expense: Expense | n
   const [confirmDelete, setConfirmDelete] = useState(false);
   if (!snapshot) return null;
   const value = Number(amount) || 0;
-  const rates = { vndKrw: snapshot.trip.vndKrw, usdKrw: snapshot.trip.usdKrw };
+  const rates = ratesOf(snapshot.trip);
   const fromPool = payer === POOL;
 
   async function save() {
@@ -227,9 +234,7 @@ function ExpenseSheet({ expense, defaultPayer, onClose }: { expense: Expense | n
         <span>금액</span>
         <div style={{ display: "flex", gap: 8 }}>
           <input id="exp-amount" className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0" />
-          <div className="chips" style={{ flexWrap: "nowrap" }}>
-            {(["VND", "KRW", "USD"] as const).map((c) => <button key={c} type="button" className="chip" aria-pressed={cur === c} onClick={() => setCur(c)}>{CUR_SIGN[c]}</button>)}
-          </div>
+          <CurChips trip={snapshot!.trip} cur={cur} onPick={setCur} />
         </div>
         {cur !== "KRW" && value > 0 && <small className="num" style={{ fontSize: 12, color: "var(--ink3)" }}>약 {formatKrw(toKrw(value, cur, rates))}</small>}
       </div>
@@ -266,7 +271,7 @@ function DepositSheet({ deposit, defaultPayer, onClose }: { deposit: Expense | n
   const { snapshot } = useApp();
   const [payer, setPayer] = useState(deposit?.payer ?? defaultPayer);
   const [amount, setAmount] = useState(deposit ? String(deposit.amount) : "");
-  const [cur, setCur] = useState<Currency>(deposit?.cur ?? "VND");
+  const [cur, setCur] = useState<Currency>(deposit?.cur ?? snapshot!.trip.currency);
   const [memo, setMemo] = useState(deposit?.memo ?? "");
   if (!snapshot) return null;
   const value = Number(amount) || 0;
@@ -289,9 +294,7 @@ function DepositSheet({ deposit, defaultPayer, onClose }: { deposit: Expense | n
         <span>금액</span>
         <div style={{ display: "flex", gap: 8 }}>
           <input id="dep-amount" className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="1000000" />
-          <div className="chips" style={{ flexWrap: "nowrap" }}>
-            {(["VND", "KRW", "USD"] as const).map((c) => <button key={c} type="button" className="chip" aria-pressed={cur === c} onClick={() => setCur(c)}>{CUR_SIGN[c]}</button>)}
-          </div>
+          <CurChips trip={snapshot!.trip} cur={cur} onPick={setCur} />
         </div>
       </div>
       <label className="field"><span>메모</span><input id="dep-memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 환전한 현금" /></label>

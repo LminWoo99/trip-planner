@@ -1,6 +1,7 @@
 // Domain model. Plain readonly data; no dependency on PocketBase or the UI.
 
-export type Currency = "VND" | "KRW" | "USD";
+/** ISO 4217 code, e.g. "VND", "JPY", "KRW" */
+export type Currency = string;
 export type BranchKey = "A" | "B" | "C" | "D";
 export type Category = "flight" | "move" | "stay" | "food" | "cafe" | "sight" | "trek" | "shop" | "etc";
 export type Split = "half" | "payer" | "other";
@@ -10,7 +11,11 @@ export interface Trip {
   readonly title: string;
   readonly start: string; // YYYY-MM-DD
   readonly end: string;
-  readonly vndKrw: number;
+  readonly region: "domestic" | "abroad";
+  /** the local money ("KRW" on domestic trips) */
+  readonly currency: Currency;
+  /** won per one unit of the local money */
+  readonly localKrw: number;
   readonly usdKrw: number;
   readonly budget: number;
 }

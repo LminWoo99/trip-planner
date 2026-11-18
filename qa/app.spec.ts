@@ -366,6 +366,9 @@ test.describe("여행 목록", () => {
 
     await page.getByRole("button", { name: "새 여행" }).click();
     await page.locator("#trip-title").fill("QA 도쿄 여행");
+    // abroad → Japan: the trip keeps money in yen
+    await page.getByRole("button", { name: "일본" }).click();
+    await expect(page.getByText(/엔\(¥\)으로 기록해요/)).toBeVisible();
     await page.locator("#trip-start").fill("2027-03-20");
     await page.locator("#trip-end").fill("2027-03-23");
     await expect(page.getByText("3박 4일")).toBeVisible();
@@ -375,6 +378,12 @@ test.describe("여행 목록", () => {
     await expect(page.getByRole("heading", { name: "QA 도쿄 여행" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^\d일차/ })).toHaveCount(4);
     await shot(page, "92-new-trip-opened");
+    await page.getByRole("button", { name: "경비" }).click();
+    await expect(page.getByText("엔 → 원 계산기")).toBeVisible();
+    await page.getByRole("button", { name: "지출 추가" }).click();
+    await expect(page.getByRole("button", { name: "¥", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "닫기" }).click();
+    await page.getByRole("button", { name: "일정" }).click();
 
     // reopening the app lands in the last trip
     await page.reload();
@@ -388,6 +397,34 @@ test.describe("여행 목록", () => {
     await page.getByRole("button", { name: "삭제하기" }).click();
     await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
     await expect(page.getByRole("button", { name: /QA 도쿄 여행/ })).toHaveCount(0);
+  });
+
+  test("국내 여행은 원으로만 기록하고 환율 계산기가 없다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "creates and deletes a trip; once is enough");
+    await page.goto("/");
+    await page.getByRole("button", { name: "여행 목록" }).click();
+    await page.getByRole("button", { name: "새 여행" }).click();
+    await page.locator("#trip-title").fill("QA 부산 여행");
+    await page.getByRole("radio", { name: "국내" }).click();
+    await expect(page.getByRole("button", { name: "일본" })).toHaveCount(0);
+    await page.locator("#trip-start").fill("2027-04-10");
+    await page.locator("#trip-end").fill("2027-04-11");
+    await page.getByRole("button", { name: "만들기" }).click();
+    await expect(page.getByRole("heading", { name: "QA 부산 여행" })).toBeVisible();
+    await page.getByRole("button", { name: "경비" }).click();
+    await expect(page.getByText(/→ 원 계산기/)).toHaveCount(0);
+    await page.getByRole("button", { name: "지출 추가" }).click();
+    await expect(page.locator("#exp-amount")).toBeVisible();
+    await expect(page.getByRole("button", { name: "$", exact: true })).toHaveCount(0);
+    await shot(page, "93-domestic-expense");
+    await page.getByRole("button", { name: "닫기" }).click();
+    await page.getByRole("button", { name: "더보기" }).click();
+    await expect(page.getByRole("button", { name: /^예산 설정/ })).toBeVisible();
+    await page.getByRole("button", { name: /여행 설정/ }).click();
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.locator("#trip-delete-confirm").fill("QA 부산 여행");
+    await page.getByRole("button", { name: "삭제하기" }).click();
+    await expect(page.getByRole("heading", { name: "우리 여행" })).toBeVisible();
   });
 
   test("사파·하노이가 아닌 도시도 날짜의 도시를 적으면 그 도시 날씨가 나온다", async ({ page }, info) => {

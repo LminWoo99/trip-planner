@@ -1,20 +1,20 @@
 import { Clock, ExternalLink, MapPin, Pencil, Route, Wallet } from "lucide-react";
 import { CATEGORY_LABEL, type Item } from "../../domain/types";
 import { courseKm, formatKm, gmapsSearch } from "../../domain/geo";
-import { formatApproxKrw, toKrw } from "../../domain/money";
+import { formatApproxKrw, ratesOf, toKrw } from "../../domain/money";
+import { formatMoney } from "../../domain/countries";
 import { useApp } from "../../app/store";
 import { Sheet } from "../Sheet";
 import { PhotoStrip } from "../Photos";
 import { CATEGORY_ICON } from "../icons";
 import { Linkified } from "./DayHead";
 
-const CUR_SIGN = { VND: "₫", KRW: "원", USD: "$" } as const;
 
 /** Read view of one schedule item (used for plan steps inside a fork); edit is one tap away. */
 export function ItemDetailSheet({ item, onClose, onEdit, onRoute }: { item: Item; onClose: () => void; onEdit: () => void; onRoute: () => void }) {
   const { snapshot } = useApp();
   const group = item.group ? snapshot?.groups.find((g) => g.id === item.group) : null;
-  const rates = snapshot ? { vndKrw: snapshot.trip.vndKrw, usdKrw: snapshot.trip.usdKrw } : null;
+  const rates = snapshot ? ratesOf(snapshot.trip) : null;
   const CatIcon = CATEGORY_ICON[item.cat];
   const km = item.stops.length ? courseKm(item.stops) : 0;
 
@@ -30,7 +30,7 @@ export function ItemDetailSheet({ item, onClose, onEdit, onRoute }: { item: Item
         )}
         {item.cost > 0 && (
           <div className="detail-row"><Wallet className="icon" />
-            <span className="num">{item.cost.toLocaleString("ko-KR")}{CUR_SIGN[item.cur ?? "VND"]}{rates && item.cur !== "KRW" ? ` (${formatApproxKrw(toKrw(item.cost, item.cur ?? "VND", rates))})` : ""}</span>
+            <span className="num">{formatMoney(item.cost, item.cur ?? rates?.local ?? "KRW")}{rates && (item.cur ?? rates.local) !== "KRW" ? ` (${formatApproxKrw(toKrw(item.cost, item.cur ?? rates.local, rates))})` : ""}</span>
           </div>
         )}
         {item.stops.length > 0 && (
