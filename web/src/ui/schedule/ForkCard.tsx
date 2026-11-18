@@ -5,7 +5,7 @@ import type { BranchKey, Item, Member } from "../../domain/types";
 import type { ForkEntry } from "../../domain/timeline";
 import { formatKm, formatMinutes, isSameSpot, type LatLng } from "../../domain/geo";
 import { PILL, useLegPill } from "./useLegPill";
-import { describe, MOUNTAIN_FORECAST_URL, type DailyWeather } from "../../infra/weather";
+import { describe, type DailyWeather } from "../../infra/weather";
 import { WEATHER_ICON } from "../icons";
 import { forecastHint } from "./DayHead";
 import { formatApproxKrw, type PlannedCost } from "../../domain/money";
@@ -17,6 +17,8 @@ interface Props {
   meName: string | null;
   otherName: string | null;
   summit: DailyWeather | null;
+  /** the day's forecast page, if one was added */
+  weatherUrl: string;
   dayDate: string;
   branchCosts: ReadonlyMap<BranchKey, PlannedCost>;
   onPick: (key: BranchKey) => void;
@@ -31,7 +33,7 @@ interface Props {
 const hasLoc = (i: Item): i is Item & LatLng => i.lat !== null && i.lng !== null;
 
 /** Before a choice: the trail splits into the plans; tap or swipe to preview, then confirm. */
-export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branchCosts, tab, onTab: setTab, onOpenItem, onPick, onEdit, onAddItem }: Props) {
+export function ForkCard({ entry, numberStart, otherName, summit, weatherUrl, dayDate, branchCosts, tab, onTab: setTab, onOpenItem, onPick, onEdit, onAddItem }: Props) {
   const { group, branches } = entry;
   const keys = group.branches.map((b) => b.key);
   const at = Math.max(0, keys.indexOf(tab));
@@ -75,7 +77,7 @@ export function ForkCard({ entry, numberStart, otherName, summit, dayDate, branc
             </>
           ) : <span>{forecastHint(dayDate)}</span>}
         </div>
-        <a className="mf-link" href={MOUNTAIN_FORECAST_URL} target="_blank" rel="noopener noreferrer">상세<ArrowUpRight className="icon" /></a>
+        {weatherUrl && <a className="mf-link" href={weatherUrl} target="_blank" rel="noopener noreferrer">상세<ArrowUpRight className="icon" /></a>}
       </div>
       <div className="trail" role="tablist" aria-label="플랜 고르기">
         {group.branches.map((b, i) => (

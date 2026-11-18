@@ -24,7 +24,7 @@ export const toTrip = (r: RecordModel): Trip => ({
 export const toMember = (r: RecordModel): Member => ({ id: r.id, user: r.user, displayName: r.displayName, role: r.role === "owner" ? "owner" : "member" });
 
 export const mappers: { [K in TripCollection]: (r: RecordModel) => TripSnapshot[K][number] } = {
-  days: (r): Day => ({ id: r.id, n: r.n, date: date(r.date), city: r.city, title: r.title, stay: r.stay, memo: r.memo }),
+  days: (r): Day => ({ id: r.id, n: r.n, date: date(r.date), city: r.city, title: r.title, stay: r.stay, memo: r.memo, weatherUrl: r.weatherUrl ?? "" }),
   groups: (r): Group => ({
     id: r.id, day: r.day, order: r.order, title: r.title, decideAt: r.decideAt, branches: r.branches ?? [],
     selected: orNull<BranchKey>(r.selected), selectedBy: orNull<string>(r.selectedBy), selectedAt: orNull<string>(r.selectedAt),

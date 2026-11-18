@@ -31,6 +31,8 @@ export interface Day {
   readonly title: string;
   readonly stay: string;
   readonly memo: string;
+  /** a forecast page for this day, shown under the weather ("" when none) */
+  readonly weatherUrl: string;
 }
 
 export interface Branch {

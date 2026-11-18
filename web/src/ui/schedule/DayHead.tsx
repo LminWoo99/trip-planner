@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { BedDouble, Pencil, Wallet } from "lucide-react";
+import { ArrowUpRight, BedDouble, Pencil, Wallet } from "lucide-react";
+import { linkHost } from "../../domain/links";
 import { formatApproxKrw, formatKrw, type PlannedCost } from "../../domain/money";
 import type { Day } from "../../domain/types";
 import { describe, weatherFor, type Forecast, type Spot } from "../../infra/weather";
@@ -52,6 +53,11 @@ export function DayHead({ day, spots, forecast, planned, spent, basis, onEdit }:
       ) : (
         <p className="wx-empty">{forecastHint(day.date)}</p>
       ))}
+      {day.weatherUrl && linkHost(day.weatherUrl) && (
+        <a className="wx-link" href={day.weatherUrl} target="_blank" rel="noopener noreferrer">
+          <span>예보 자세히 보기</span><small>{linkHost(day.weatherUrl)}<ArrowUpRight className="icon" /></small>
+        </a>
+      )}
       {day.memo && <p className={`day-memo keep ${longMemo && !memoOpen ? "clamped" : ""}`}><Linkified text={day.memo} /></p>}
       {day.memo && longMemo && (
         <button className="memo-more" style={{ marginLeft: 0 }} onClick={() => setMemoOpen(!memoOpen)} aria-expanded={memoOpen}>{memoOpen ? "접기" : "메모 더보기"}</button>
