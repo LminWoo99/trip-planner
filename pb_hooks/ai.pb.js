@@ -21,27 +21,40 @@ routerAdd("POST", "/api/ai/plan", (e) => {
       properties: {
         n: { type: "integer" },
         items: { type: "array", items: {
-          type: "object", additionalProperties: false, required: ["time", "title", "cat", "place", "memo"],
+          type: "object", additionalProperties: false, required: ["time", "title", "cat", "place", "memo", "candidates"],
           properties: {
             time: { type: "string", description: "HH:MM if the text gives a time, otherwise empty" },
             title: { type: "string" },
             cat: { type: "string", enum: ["flight", "move", "stay", "food", "cafe", "sight", "trek", "shop", "etc"] },
             place: { type: "string", description: "a specific place name to search on a map, or empty if no concrete place" },
             memo: { type: "string", description: "short extra detail from the text, or empty" },
+            candidates: { type: "array", items: { type: "string" }, description: "only for recommended food or cafe stops: up to 3 well-known places nearby to choose from by rating; otherwise empty" },
           },
         } },
       },
     } } },
   };
-  const result = askJson(
-    "너는 여행 일정 정리 도우미야. 사용자가 날짜별로 쓴 글을 일정 항목으로 나눠. 글에 없는 일정이나 시간은 지어내지 마. "
-      + "'첫째 날', '1일차', 날짜 표현을 여행 날짜 목록의 n으로 맞춰. 시간이 '오후 3시쯤'이면 15:00처럼 쓰고, '아침'처럼 애매하면 비워. "
-      + "제목은 한국어로 짧게, 장소는 지도에서 찾을 수 있는 고유한 이름만 넣어(현지어나 영어 이름이 있으면 그걸로).",
+  // "알아서 추천해 줘": look up popular courses and well-reviewed places instead of only splitting the text
+  const recommend = /추천|알아서|짜\s*줘|골라\s*줘|코스\s*짜/.test(text);
+  const trip = e.app.findRecordById("trips", tripId);
+  const domestic = trip.getString("region") === "domestic";
+  const base = "너는 여행 일정 도우미야. '첫째 날', '1일차', 날짜 표현을 여행 날짜 목록의 n으로 맞춰. 시간이 '오후 3시쯤'이면 15:00처럼 쓰고, 애매하면 비워. "
+    + "제목은 한국어로 짧게, 장소는 지도에서 찾을 수 있는 고유한 이름만 넣어" + (domestic ? "(한국 상호명 그대로). " : "(현지어나 영어 이름이 있으면 그걸로). ");
+  const instructions = recommend
+    ? base + "사용자가 추천을 원한 날은 웹에서 그 도시의 많이 가는 여행 코스를 찾아 하루 4~6개 일정으로 짜. 이동이 짧게 이어지도록 가까운 곳끼리 묶고, 점심·저녁·카페 시간을 넣어. "
+      + "식당과 카페는 " + (domestic ? "네이버 블로그·리뷰에서 많이 언급되는 곳" : "Google 리뷰가 많고 평점이 높은 곳") + "을 찾아 place에 가장 좋은 한 곳, candidates에 근처 후보 최대 3곳(첫째는 place와 같게)을 넣어. "
+      + "관광지는 candidates를 비워. memo에는 왜 고른 곳인지 한 줄로(링크나 출처 표시는 넣지 마). 사용자가 직접 쓴 일정은 그대로 살리고, 쓴 적 없는 날은 건드리지 마."
+    : base + "사용자가 날짜별로 쓴 글을 일정 항목으로 나눠. 글에 없는 일정이나 시간은 지어내지 마. candidates는 비워.";
+  const result = askJson(instructions,
     [{ type: "input_text", text: "여행 날짜: " + JSON.stringify(days) + "\n\n사용자 글:\n" + text }],
-    "plan", schema,
+    "plan", schema, { webSearch: recommend },
   );
   const valid = new Set(days.map((d) => d.n));
-  return e.json(200, { days: (result.days || []).filter((d) => valid.has(d.n)) });
+  // web search answers carry source links like "([site](url))"; the schedule only needs the words
+  const clean = (t) => String(t || "").replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+  const out = (result.days || []).filter((d) => valid.has(d.n))
+    .map((d) => ({ n: d.n, items: (d.items || []).map((it) => ({ ...it, title: clean(it.title), memo: clean(it.memo), candidates: (it.candidates || []).slice(0, 3) })) }));
+  return e.json(200, { days: out });
 }, $apis.requireAuth("users"));
 
 routerAdd("POST", "/api/trips/{id}/apply-plan", (e) => {

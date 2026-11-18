@@ -146,7 +146,8 @@ export async function subscribeOutfits(tripId: string, onChange: () => void): Pr
 
 // ---- AI ----
 
-export interface PlanItem { time: string; title: string; cat: string; place: string; memo: string; placeId?: string; lat?: number; lng?: number }
+/** candidates: for recommended food/cafe stops, places to pick from by rating */
+export interface PlanItem { time: string; title: string; cat: string; place: string; memo: string; candidates?: string[]; placeId?: string; lat?: number; lng?: number }
 export interface AiPerson { position: number; body: "m" | "f"; build: Look["build"]; hairStyle: string; glasses: Look["glasses"] | "none"; hairColor: string; skin: string; summary: string }
 export interface AiGarment extends Features { text: string; slot: string; label: string; color: string }
 
