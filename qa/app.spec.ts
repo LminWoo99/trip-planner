@@ -483,12 +483,15 @@ test.describe("Google 지도·장소", () => {
     const drive = sheet.getByRole("tab", { name: /차·그랩/ });
     await expect(drive).toContainText(/\d+분|\d+시간/, { timeout: 20000 });
     await drive.click();
-    await expect(sheet.locator(".leg-step").first()).toBeVisible();
+    // car: just the time and distance, the way is left to Google Maps
+    await expect(sheet.locator(".leg-summary")).toBeVisible();
+    await expect(sheet.locator(".leg-step, .leg-map")).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "구글맵에서 길찾기" })).toHaveAttribute("href", /travelmode=driving/);
     await page.waitForTimeout(1500);
     await shot(page, "86-leg-drive");
     await sheet.getByRole("tab", { name: /대중교통/ }).click();
     await expect(sheet.locator(".leg-step, .note-box").first()).toBeVisible({ timeout: 20000 });
+    await expect(sheet.getByRole("link", { name: "구글맵에서 실시간 보기" })).toHaveAttribute("href", /travelmode=transit/);
     await shot(page, "87-leg-transit");
   });
 
