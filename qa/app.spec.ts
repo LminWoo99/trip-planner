@@ -269,6 +269,23 @@ test.describe("일정", () => {
     await expect(page.locator(".day-memo")).not.toContainText("QA 메모 추가");
   });
 
+  test("날짜에 날씨 링크를 넣으면 날씨 아래에 바로가기가 생기고 지우면 사라진다", async ({ page }, info) => {
+    test.skip(info.project.name !== "iphone", "writes the shared trip; once is enough");
+    await page.goto("/");
+    await openDay(page, 2);
+    await page.getByRole("button", { name: "하루 정보 고치기" }).click();
+    await page.locator("#day-weather-url").fill("www.mountain-forecast.com/peaks/Fan-Si-Pan/forecasts/3211");
+    await expect(page.getByText("mountain-forecast.com 링크예요")).toBeVisible();
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    const link = page.getByRole("link", { name: /예보 자세히 보기/ });
+    await expect(link).toHaveAttribute("href", "https://www.mountain-forecast.com/peaks/Fan-Si-Pan/forecasts/3211");
+    await shot(page, "15b-weather-link");
+    await page.getByRole("button", { name: "하루 정보 고치기" }).click();
+    await page.locator("#day-weather-url").fill("");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(link).toHaveCount(0);
+  });
+
   test("편집 모드에서 손잡이를 끌어 순서를 바꾼다", async ({ page }) => {
     await page.goto("/");
     await openDay(page, 4);

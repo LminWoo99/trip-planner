@@ -154,4 +154,3 @@ export function describe(code: number): { label: string; icon: string } {
   return { label: "흐림", icon: "cloud" };
 }
 
-export const MOUNTAIN_FORECAST_URL = "https://www.mountain-forecast.com/peaks/Fan-Si-Pan/forecasts/3211";

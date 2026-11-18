@@ -168,6 +168,7 @@ export function ScheduleScreen({ onSelectionBar }: { onSelectionBar: (shown: boo
             meName={me?.displayName ?? null}
             otherName={other?.displayName ?? null}
             summit={weatherFor(forecast, "fansipan", day.date)}
+            weatherUrl={day.weatherUrl}
             dayDate={day.date}
             branchCosts={new Map(g.branches.map((b) => [b.key, plannedCost(e.branches.get(b.key) ?? [], rates)]))}
             tab={shown}
