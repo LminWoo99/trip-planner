@@ -180,7 +180,8 @@ routerAdd("POST", "/api/ai/avatar", (e) => {
   };
   // the photo is only sent to the model; nothing is stored
   const result = askJson(
-    "사진 속 사람(최대 2명, 왼쪽부터)의 겉모습을 만화 아바타용 값으로만 골라. 누구인지 추측하거나 다른 정보는 말하지 마. "
+    "사진의 주인공으로 또렷하게 찍힌 실제 사람(최대 2명, 왼쪽부터)의 겉모습을 만화 아바타용 값으로만 골라. 누구인지 추측하거나 다른 정보는 말하지 마. "
+      + "사람 수를 먼저 정확히 세. 한 사람만 있으면 반드시 1명만 돌려줘. 거울·유리에 비친 모습, 포스터·화면·사진 속 인물, 멀리 있거나 흐릿한 배경 사람, 얼굴이 거의 안 보이는 사람은 세지 마. "
       + "안경은 눈 주변을 꼼꼼히 보고 테가 조금이라도 보이면 있다고 해. 머리 스타일은 앞머리 모양(내린 앞머리, 가르마, 올린 머리), 옆머리 길이, 뒷머리 길이, 컬을 보고 목록에서 가장 가까운 것을 골라. "
       + "목록 뜻: dandy 댄디컷, twoblock 투블럭, comma 쉼표머리, partperm 가르마펌, leaf 리프컷, azperm 애즈펌, crop 크롭컷, pomade 포마드, wolf 장발·울프컷, hippie_m 짧은 히피펌, "
       + "tassel 태슬컷, cbob C컬 단발, hush 허쉬컷, layered 레이어드컷, straight 긴 생머리, build 빌드펌, hippie_f 히피펌, pony 포니테일, bun 똥머리, half 반묶음.",

@@ -23,12 +23,13 @@ export interface Step {
   readonly minutes: number;
   readonly meters: number;
   readonly line?: TransitLine;
+  /** minutes between departures at this stop ("놓치면 약 n분 뒤") */
+  readonly everyMin?: number;
 }
 
 export interface RouteResult {
   readonly minutes: number;
   readonly meters: number;
-  readonly path: readonly google.maps.LatLngLiteral[];
   readonly steps: readonly Step[];
   readonly fare: string | null;
   readonly transfers: number;
@@ -65,7 +66,8 @@ async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure: Date | 
     destination: to,
     travelMode: mode,
     language: "ko",
-    fields: ["durationMillis", "distanceMeters", "path", "legs", "travelAdvisory"],
+    // only transit shows steps and fares; other modes need just the time and distance
+    fields: mode === "TRANSIT" ? ["durationMillis", "distanceMeters", "legs", "travelAdvisory"] : ["durationMillis", "distanceMeters"],
     ...(mode === "TRANSIT" ? { departureTime } : {}),
   });
   const r = routes?.[0];
@@ -90,6 +92,7 @@ async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure: Date | 
           sub: `${t.departureStop?.name ?? ""} ${at(t.departureTime)} → ${t.arrivalStop?.name ?? ""} ${at(t.arrivalTime)} · ${t.stopCount}정거장`,
           minutes: mins(s.staticDurationMillis),
           meters: s.distanceMeters,
+          everyMin: t.headwayMillis ? Math.round(t.headwayMillis / 60_000) : undefined,
           line: {
             name: line?.name ?? "",
             short: line?.shortName || (line?.name ?? "").slice(0, 2),
@@ -116,7 +119,6 @@ async function fetchLeg(from: LatLng, to: LatLng, mode: Mode, departure: Date | 
   return {
     minutes: mins(r.durationMillis),
     meters: r.distanceMeters ?? 0,
-    path: (r.path ?? []).map((p) => ({ lat: p.lat, lng: p.lng })),
     steps,
     fare: fare && fare.units > 0 ? `${fare.units.toLocaleString("ko-KR")} ${fare.currencyCode}` : null,
     transfers: Math.max(0, transfers),

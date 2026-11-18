@@ -54,17 +54,19 @@ export function AvatarSetup({ me, partner, initial, aiAllowed, onDone }: {
       if (!people.length) { toast("사진에서 사람을 찾지 못했어요. 다른 사진으로 해 주세요."); setStep("choose"); return; }
       setFound(people);
       setAssign(people.map((_, i) => (i === 0 ? me.user : i === 1 && partner ? partner.user : "")));
-      setStep("found");
+      // one person: it's me, no need to ask who is who
+      if (people.length === 1) { setStep("faces"); void makeFace(0, people, image); } else setStep("found");
     } catch (e) {
       toast((e as { response?: { message?: string } }).response?.message || "사진을 읽지 못했어요. 다시 해 주세요.");
       setStep("choose");
     }
   }
 
-  async function makeFace(i: number) {
+  // people/image are passed in right after reading the photo, before state has caught up
+  async function makeFace(i: number, people = found, image0 = photo) {
     setFaces((f) => ({ ...f, [i]: { image: f[i]?.image ?? "", note: f[i]?.note ?? "", busy: true } }));
     try {
-      const { image } = await aiFace(photo, found.length, found[i].position || i + 1, found[i].summary, faces[i]?.note ?? "");
+      const { image } = await aiFace(image0, people.length, people[i].position || i + 1, people[i].summary, faces[i]?.note ?? "");
       setFaces((f) => ({ ...f, [i]: { ...f[i], image, busy: false } }));
     } catch (e) {
       toast(errorText(e, "얼굴을 만들지 못했어요. 다시 해 주세요."));

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, Bike, Car, Footprints, Navigation, TrainFront } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bike, Car, Footprints, Navigation, TrainFront } from "lucide-react";
 import type { Item } from "../../domain/types";
 import { estimateLeg, formatMinutes, gmapsRoute } from "../../domain/geo";
 import { formatHm, zonedDate } from "../../domain/clock";
-import { computeLeg, formatMeters, grabUrl, rememberLegTimes, type Mode, type RouteResult } from "../../infra/routes";
-import { hasGoogleKey, loadMaps } from "../../infra/google";
+import { cachedLegTimes, computeLeg, formatMeters, grabUrl, rememberLegTimes, type LegTimes, type Mode, type RouteResult } from "../../infra/routes";
+import { hasGoogleKey } from "../../infra/google";
 import { sheetMode, useLegPill } from "./useLegPill";
 import { Sheet } from "../Sheet";
 import { toast } from "../toast";
@@ -17,7 +17,18 @@ const MODES: { mode: Mode; label: string; icon: typeof Car; gmaps: string }[] = 
 ];
 
 type Located = Item & { lat: number; lng: number };
-type State = { status: "loading" } | { status: "none" } | { status: "error" } | { status: "ok"; route: RouteResult };
+/** lite: only the time and distance kept by the timeline, no steps yet */
+type State = { status: "loading" } | { status: "none" } | { status: "error" } | { status: "ok"; route: RouteResult; lite?: boolean };
+
+function fromKept(kept: LegTimes | null): Partial<Record<Mode, State>> {
+  if (!kept) return {};
+  const lite = (t: { minutes: number; meters: number }): State => ({ status: "ok", lite: true, route: { ...t, steps: [], fare: null, transfers: 0, departAt: null, arriveAt: null, walkOnly: false } });
+  const out: Partial<Record<Mode, State>> = {};
+  if (kept.walk) out.WALKING = lite(kept.walk);
+  if (kept.transit) out.TRANSIT = lite(kept.transit);
+  if (kept.car) out.DRIVING = lite(kept.car);
+  return out;
+}
 
 /** How to get from one stop to the next: real times per mode from Google, steps, and hand-off to Maps or Grab. */
 export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: Located; date: string; tz: string; onClose: () => void }) {
@@ -25,31 +36,36 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
   const pill = useLegPill(from, to);
   // open on the mode the timeline shows, so the number matches what was tapped
   const [mode, setMode] = useState<Mode>(sheetMode(pill.mode));
-  const [results, setResults] = useState<Partial<Record<Mode, State>>>({});
+  // tabs start from the times the timeline already keeps on the phone; Google is asked only for what's missing
+  const kept = cachedLegTimes(from, to);
+  const [results, setResults] = useState<Partial<Record<Mode, State>>>(() => fromKept(kept));
   const offline = !navigator.onLine || !hasGoogleKey();
   // item times are the destination's wall clock, wherever the phone is set
   const departure = from.time ? zonedDate(date, from.time, tz) : undefined;
+  const [asked, setAsked] = useState<Set<Mode>>(new Set());
+
+  function ask(m: Mode) {
+    if (offline || asked.has(m)) return;
+    setAsked((a) => new Set(a).add(m));
+    setResults((r) => ({ ...r, [m]: r[m]?.status === "ok" ? r[m] : { status: "loading" } }));
+    computeLeg(from, to, m, departure, tz)
+      .then((route) => {
+        setResults((r) => ({ ...r, [m]: route ? { status: "ok", route } : { status: "none" } }));
+        // the timeline adopts exactly what the sheet shows
+        const slot = m === "WALKING" ? "walk" : m === "TRANSIT" ? "transit" : m === "DRIVING" ? "car" : null;
+        if (slot) {
+          const v = route && !(m === "TRANSIT" && route.walkOnly) ? { minutes: route.minutes, meters: route.meters } : null;
+          rememberLegTimes(from, to, { ...(cachedLegTimes(from, to) ?? { walk: null, transit: null, car: null }), [slot]: v });
+        }
+      })
+      .catch(() => setResults((r) => ({ ...r, [m]: { status: "error" } })));
+  }
 
   useEffect(() => {
-    if (offline) return;
-    let alive = true;
-    for (const m of MODES) {
-      setResults((r) => ({ ...r, [m.mode]: { status: "loading" } }));
-      computeLeg(from, to, m.mode, departure, tz)
-        .then((route) => alive && setResults((r) => ({ ...r, [m.mode]: route ? { status: "ok", route } : { status: "none" } })))
-        .catch(() => alive && setResults((r) => ({ ...r, [m.mode]: { status: "error" } })));
-    }
-    return () => { alive = false; };
+    // modes without a kept time, plus transit's steps when transit is the one shown
+    for (const m of MODES) if (!results[m.mode] || (m.mode === "TRANSIT" && mode === "TRANSIT")) ask(m.mode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // once every mode has answered, the timeline adopts these exact numbers
-  useEffect(() => {
-    if (offline || MODES.some((m) => !results[m.mode] || results[m.mode]!.status === "loading")) return;
-    const t = (m: Mode) => { const s = results[m]; return s?.status === "ok" && !(m === "TRANSIT" && s.route.walkOnly) ? { minutes: s.route.minutes, meters: s.route.meters } : null; };
-    rememberLegTimes(from, to, { walk: t("WALKING"), transit: t("TRANSIT"), car: t("DRIVING") });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results]);
 
   const current = results[mode];
   const route = current?.status === "ok" ? current.route : null;
@@ -67,7 +83,7 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
   return (
     <Sheet title="이동 방법" onClose={onClose} footer={<>
       {(mode === "DRIVING" || mode === "TWO_WHEELER") && <button className="btn ghost grab-btn" onClick={openGrab}><i />그랩 열기</button>}
-      <a className="btn primary" style={{ textDecoration: "none" }} href={mapsUrl} target="_blank" rel="noopener noreferrer"><Navigation className="icon" />구글맵에서 길찾기</a>
+      <a className="btn primary" style={{ textDecoration: "none" }} href={mapsUrl} target="_blank" rel="noopener noreferrer"><Navigation className="icon" />{mode === "TRANSIT" ? "구글맵에서 실시간 보기" : "구글맵에서 길찾기"}</a>
     </>}>
       <div className="leg-ft">
         <span className="dot" /><span className="keep">{from.title}</span>
@@ -81,7 +97,7 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
           const value = offline ? (m === "WALKING" && guess.mode === "walk") || (m === "DRIVING" && guess.mode === "car") ? `약 ${formatMinutes(guess.minutes)}` : "–"
             : !s || s.status === "loading" ? "…" : s.status !== "ok" ? "없음" : s.route.walkOnly ? "걷기" : formatMinutes(s.route.minutes);
           return (
-            <button key={m} role="tab" aria-selected={m === mode} className={`leg-mode ${s && s.status !== "ok" && s.status !== "loading" ? "off" : ""}`} onClick={() => setMode(m)}>
+            <button key={m} role="tab" aria-selected={m === mode} className={`leg-mode ${s && s.status !== "ok" && s.status !== "loading" ? "off" : ""}`} onClick={() => { setMode(m); if (m === "TRANSIT") ask(m); }}>
               <span>{label}</span><b className="num">{value}</b>
             </button>
           );
@@ -112,42 +128,28 @@ export function LegSheet({ from, to, date, tz, onClose }: { from: Located; to: L
           {mode === "TRANSIT" && route.departAt && route.arriveAt
             ? <div className="leg-when num">{at(route.departAt)} 출발 → {at(route.arriveAt)} 도착</div>
             : arriveGuess && <div className="leg-when num">{from.time} 출발하면 {at(arriveGuess)} 도착{to.time ? ` · 다음 일정 ${to.time}` : ""}</div>}
-          {mode !== "TRANSIT" && <RouteMap path={route.path} />}
-          <ol className="leg-steps">
-            {route.steps.map((s, i) => (
-              <li key={i} className="leg-step">
-                {s.line
-                  ? <span className="s-ic line" style={{ background: s.line.color, color: s.line.textColor }}>{s.line.short}</span>
-                  : <span className="s-ic">{s.kind === "walk" ? <Footprints className="icon" /> : <ArrowUpRight className="icon" />}</span>}
-                <span style={{ minWidth: 0 }}><span className="s-main keep">{s.text}</span>{s.sub && <span className="s-sub keep">{s.sub}</span>}</span>
-                <span className="s-time num">{formatMinutes(s.minutes)}</span>
-              </li>
+          {mode === "TRANSIT" && (current?.status === "ok" && current.lite
+            ? <p className="note-box">타는 곳과 시간을 불러오는 중이에요</p>
+            : (
+              // only the rides: walking between them is left to the map app
+              <ol className="leg-steps">
+                {route.steps.filter((s) => s.kind === "transit").map((s, i) => (
+                  <li key={i} className="leg-step">
+                    <span className="s-ic line" style={{ background: s.line?.color, color: s.line?.textColor }}>{s.line?.short}</span>
+                    <span style={{ minWidth: 0 }}>
+                      <span className="s-main keep">{s.text}</span>
+                      <span className="s-sub keep">{s.sub}{s.everyMin ? ` · 약 ${s.everyMin}분 간격` : ""}</span>
+                    </span>
+                    <span className="s-time num">{formatMinutes(s.minutes)}</span>
+                  </li>
+                ))}
+              </ol>
             ))}
-          </ol>
-          <p className="fine">Google 경로 기준이에요.{mode === "DRIVING" || mode === "TWO_WHEELER" ? " 그랩 요금과 실제 시간은 그랩 앱에서 확인하세요." : ""}</p>
+          <p className="fine">{mode === "TRANSIT"
+            ? "Google 시간표 기준이에요. 지연·실시간 도착은 구글맵 앱에서 보세요."
+            : `Google 경로 기준이에요. 자세한 길은 구글맵에서 보세요.${mode === "DRIVING" || mode === "TWO_WHEELER" ? " 그랩 요금과 실제 시간은 그랩 앱에서 확인하세요." : ""}`}</p>
         </>
       )}
     </Sheet>
   );
-}
-
-function RouteMap({ path }: { path: readonly google.maps.LatLngLiteral[] }) {
-  const el = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!el.current || path.length < 2) return;
-    let alive = true;
-    loadMaps().then(({ Map }) => {
-      if (!alive || !el.current) return;
-      const m = new Map(el.current, { disableDefaultUI: true, gestureHandling: "greedy", clickableIcons: false });
-      new google.maps.Polyline({ map: m, path: [...path], strokeColor: "#5b4fe0", strokeWeight: 5, strokeOpacity: 0.9 });
-      for (const [i, p] of [[1, path[0]], [2, path[path.length - 1]]] as const) {
-        new google.maps.Marker({ map: m, position: p, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: i === 1 ? "#ffffff" : "#5b4fe0", fillOpacity: 1, strokeColor: "#5b4fe0", strokeWeight: 3 } });
-      }
-      const b = new google.maps.LatLngBounds();
-      path.forEach((p) => b.extend(p));
-      m.fitBounds(b, 28);
-    }).catch(() => { /* map is a bonus; steps still show */ });
-    return () => { alive = false; };
-  }, [path]);
-  return <div ref={el} className="leg-map" aria-label="경로 지도" />;
 }
