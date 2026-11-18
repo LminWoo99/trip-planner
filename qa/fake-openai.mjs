@@ -6,8 +6,8 @@ const answers = {
   plan: (body) => {
     const text = JSON.stringify(body.input);
     return { days: [{ n: 2, items: [
-      { time: "15:00", title: "호안끼엠 호수 산책", cat: "sight", place: "Hoan Kiem Lake", memo: "" },
-      { time: "", title: "저녁: 분짜", cat: "food", place: "", memo: text.includes("분짜") ? "글에 있던 분짜" : "" },
+      { time: "15:00", title: "호안끼엠 호수 산책", cat: "sight", place: "Hoan Kiem Lake", memo: "", candidates: [] },
+      { time: "", title: "저녁: 분짜", cat: "food", place: "", memo: text.includes("분짜") ? "글에 있던 분짜" : "", candidates: [] },
     ] }] };
   },
   clothes: (body) => {

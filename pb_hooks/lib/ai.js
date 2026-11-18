@@ -19,20 +19,22 @@ function useQuota(app, userId, kind) {
   app.save(r);
 }
 
-/** Responses API with a JSON schema; returns the parsed object. */
-function askJson(instructions, content, name, schema) {
+/** Responses API with a JSON schema; returns the parsed object. opts.webSearch lets the model look things up first. */
+function askJson(instructions, content, name, schema, opts) {
+  const webSearch = !!(opts && opts.webSearch);
   const key = $os.getenv("OPENAI_API_KEY");
   if (!key) throw new BadRequestError("AI 설정이 아직 안 돼 있어요.");
   const res = $http.send({
     url: ($os.getenv("OPENAI_BASE_URL") || "https://api.openai.com/v1") + "/responses",
     method: "POST",
-    timeout: 90,
+    timeout: webSearch ? 95 : 90,
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
     body: JSON.stringify({
       model: $os.getenv("OPENAI_MODEL") || "gpt-6-luna",
       instructions,
       input: [{ role: "user", content }],
       text: { format: { type: "json_schema", name, strict: true, schema } },
+      ...(webSearch ? { tools: [{ type: "web_search" }] } : {}),
     }),
   });
   if (res.statusCode !== 200) {
