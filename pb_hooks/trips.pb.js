@@ -16,6 +16,13 @@ routerAdd("POST", "/api/trips", (e) => {
   const b = new Date(end + "T00:00:00Z");
   const count = Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
   if (!(count >= 1 && count <= 60)) throw new BadRequestError("여행 기간은 1일에서 60일 사이로 정해 주세요.");
+  const domestic = body.region === "domestic";
+  const currency = domestic ? "KRW" : String(body.currency || "VND");
+  if (!/^[A-Z]{3}$/.test(currency)) throw new BadRequestError("나라를 다시 골라 주세요.");
+  // rates come from the phone (today's rate); keep them sane, they can be fixed later in settings
+  const rate = (v, d, lo, hi) => { const n = Number(v); return n > lo && n < hi ? n : d; };
+  const localKrw = domestic ? 1 : rate(body.localKrw, 0, 0, 100000);
+  const usdKrw = rate(body.usdKrw, 1395, 100, 100000);
 
   let tripId = "";
   $app.runInTransaction((tx) => {
@@ -23,8 +30,10 @@ routerAdd("POST", "/api/trips", (e) => {
     trip.set("title", title);
     trip.set("start", start + " 00:00:00.000Z");
     trip.set("end", end + " 00:00:00.000Z");
-    trip.set("vndKrw", 0.053);
-    trip.set("usdKrw", 1395);
+    trip.set("region", domestic ? "domestic" : "abroad");
+    trip.set("currency", currency);
+    trip.set("localKrw", localKrw);
+    trip.set("usdKrw", usdKrw);
     trip.set("budget", 0);
     tx.save(trip);
     tripId = trip.id;

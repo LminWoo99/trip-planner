@@ -1,3 +1,4 @@
+import { currenciesFor, moneyOf } from "../../domain/countries";
 import { useState } from "react";
 import { Route, Trash2 } from "lucide-react";
 import { CATEGORY_LABEL, type BranchKey, type Category, type Currency, type Item, type Stop } from "../../domain/types";
@@ -34,7 +35,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
   const [showStops, setShowStops] = useState((item?.stops.length ?? 0) > 0 || (item?.cat ?? "") === "trek");
   const [memo, setMemo] = useState(item?.memo ?? "");
   const [cost, setCost] = useState(item?.cost ? String(item.cost) : "");
-  const [cur, setCur] = useState<Currency>(item?.cur ?? "VND");
+  const [cur, setCur] = useState<Currency>(item?.cur ?? snapshot?.trip.currency ?? "KRW");
   const [link, setLink] = useState(item?.link ?? "");
   const [booking, setBooking] = useState<string>(item?.booking ?? "");
   const [day, setDay] = useState(item?.day ?? target.day);
@@ -168,7 +169,7 @@ export function ItemSheet({ item, target, onClose }: { item: Item | null; target
         <div className="field">
           <span>통화</span>
           <div className="chips">
-            {(["VND", "KRW", "USD"] as const).map((c) => <button key={c} type="button" className="chip" aria-pressed={cur === c} onClick={() => setCur(c)}>{c === "VND" ? "₫" : c === "KRW" ? "원" : "$"}</button>)}
+            {(snapshot ? currenciesFor(snapshot.trip) : ["KRW"]).map((c) => <button key={c} type="button" className="chip" aria-pressed={cur === c} onClick={() => setCur(c)}>{moneyOf(c).sign.trim()}</button>)}
           </div>
         </div>
       </div>

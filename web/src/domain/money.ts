@@ -1,16 +1,21 @@
 import type { Currency, Expense, Member } from "./types";
 
+/** won per one unit of the trip's local money (and of dollars) */
 export interface Rates {
-  readonly vndKrw: number;
+  readonly local: Currency;
+  readonly localKrw: number;
   readonly usdKrw: number;
 }
 
+export const ratesOf = (trip: { currency: Currency; localKrw: number; usdKrw: number }): Rates =>
+  ({ local: trip.currency, localKrw: trip.localKrw, usdKrw: trip.usdKrw });
+
 export function toKrw(amount: number, cur: Currency, rates: Rates): number {
-  switch (cur) {
-    case "KRW": return amount;
-    case "VND": return amount * rates.vndKrw;
-    case "USD": return amount * rates.usdKrw;
-  }
+  if (cur === "KRW") return amount;
+  if (cur === rates.local) return amount * rates.localKrw;
+  if (cur === "USD") return amount * rates.usdKrw;
+  // money of another country than the trip's (should not happen): leave it out rather than guess
+  return 0;
 }
 
 const isSpend = (e: Expense) => e.kind !== "deposit";
@@ -92,7 +97,7 @@ export function plannedCost(items: readonly { cost: number; cur: Currency | null
   let counted = 0;
   for (const it of items) {
     if (!it.cost) continue;
-    krw += toKrw(it.cost, it.cur ?? "VND", rates);
+    krw += toKrw(it.cost, it.cur ?? rates.local, rates);
     counted++;
   }
   return { krw, counted };

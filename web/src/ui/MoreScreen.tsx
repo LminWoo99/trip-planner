@@ -1,3 +1,5 @@
+import { todaysKrwRates } from "../infra/rates";
+import { formatMoney, moneyOf } from "../domain/countries";
 import { useEffect, useRef, useState } from "react";
 import { BedDouble, Bus, CircleCheck, Copy, ExternalLink, LogOut, Map as MapIcon, Plane, Plus, Ticket } from "lucide-react";
 import type { Booking } from "../domain/types";
@@ -101,7 +103,7 @@ export function MoreScreen() {
             <button className="li" onClick={() => setMembers(true)}><div className="li-title">일행</div><div className="li-sub" style={{ paddingRight: 8 }}>{snapshot.members.length}명{snapshot.members.find((m) => m.role === "owner")?.user === account?.id ? ", 초대와 승인" : ""}</div></button>
             <button className="li" onClick={() => setHistory(true)}><div className="li-title">되돌리기 기록</div><div className="li-sub" style={{ paddingRight: 8 }}>AI로 바꾸기 전 일정</div></button>
             <button className="li" onClick={() => setTripSettings(true)}><div className="li-title">여행 설정</div><div className="li-sub" style={{ paddingRight: 8 }}>이름·날짜·삭제</div></button>
-            <button className="li" onClick={() => setSettings(true)}><div className="li-title">환율·예산 설정</div><div className="li-sub num" style={{ paddingRight: 8 }}>1₫={snapshot.trip.vndKrw}원, $1={snapshot.trip.usdKrw.toLocaleString()}원</div></button>
+            <button className="li" onClick={() => setSettings(true)}><div className="li-title">{snapshot.trip.region === "domestic" ? "예산 설정" : "환율·예산 설정"}</div><div className="li-sub num" style={{ paddingRight: 8 }}>{snapshot.trip.region === "domestic" ? (snapshot.trip.budget ? `${snapshot.trip.budget.toLocaleString("ko-KR")}원` : "") : `${formatMoney(1, snapshot.trip.currency)}=${snapshot.trip.localKrw}원, $1=${snapshot.trip.usdKrw.toLocaleString()}원`}</div></button>
             <button className="li" onClick={() => setFill(true)}>
               <div className="li-title">위치 없는 장소 채우기</div>
               <div className="li-sub num" style={{ paddingRight: 8 }}>{snapshot.items.filter((i) => i.place && i.lat === null).length + snapshot.places.filter((p) => p.lat === null).length}곳</div>
@@ -199,19 +201,36 @@ function BookingSheet({ booking, onClose }: { booking: Booking | null; onClose: 
 
 function SettingsSheet({ onClose }: { onClose: () => void }) {
   const { snapshot } = useApp();
-  const [vnd, setVnd] = useState(String(snapshot?.trip.vndKrw ?? 0.053));
-  const [usd, setUsd] = useState(String(snapshot?.trip.usdKrw ?? 1395));
-  const [budget, setBudget] = useState(String(snapshot?.trip.budget || ""));
-  const valid = Number(vnd) > 0 && Number(usd) > 0;
+  const trip = snapshot!.trip;
+  const domestic = trip.region === "domestic";
+  const money = moneyOf(trip.currency).money;
+  const [local, setLocal] = useState(String(trip.localKrw));
+  const [usd, setUsd] = useState(String(trip.usdKrw));
+  const [budget, setBudget] = useState(String(trip.budget || ""));
+  const [loading, setLoading] = useState(false);
+  const valid = domestic || (Number(local) > 0 && Number(usd) > 0);
+
+  async function loadToday() {
+    setLoading(true);
+    const r = await todaysKrwRates([trip.currency, "USD"]);
+    setLoading(false);
+    if (!r) { toast("환율을 불러오지 못했어요. 연결을 확인해 주세요."); return; }
+    if (r[trip.currency]) setLocal(String(r[trip.currency]));
+    if (r.USD) setUsd(String(r.USD));
+  }
 
   async function save() {
-    if (await attempt(() => updateTrip({ vndKrw: Number(vnd), usdKrw: Number(usd), budget: Number(budget) || 0 }), "저장했어요")) onClose();
+    const data = domestic ? { budget: Number(budget) || 0 } : { localKrw: Number(local), usdKrw: Number(usd), budget: Number(budget) || 0 };
+    if (await attempt(() => updateTrip(data), "저장했어요")) onClose();
   }
 
   return (
-    <Sheet title="환율·예산 설정" onClose={onClose} footer={<button className="btn primary" disabled={!valid} onClick={save}>저장</button>}>
-      <label className="field"><span>1동은 몇 원?</span><input id="set-vnd" className="input num" inputMode="decimal" value={vnd} onChange={(e) => setVnd(e.target.value)} /></label>
-      <label className="field"><span>1달러는 몇 원?</span><input id="set-usd" className="input num" inputMode="decimal" value={usd} onChange={(e) => setUsd(e.target.value)} /></label>
+    <Sheet title={domestic ? "예산 설정" : "환율·예산 설정"} onClose={onClose} footer={<button className="btn primary" disabled={!valid} onClick={save}>저장</button>}>
+      {!domestic && <>
+        <label className="field"><span>1{money}은 몇 원?</span><input id="set-local" className="input num" inputMode="decimal" value={local} onChange={(e) => setLocal(e.target.value)} /></label>
+        <label className="field"><span>1달러는 몇 원?</span><input id="set-usd" className="input num" inputMode="decimal" value={usd} onChange={(e) => setUsd(e.target.value)} /></label>
+        <button type="button" className="btn ghost sm" disabled={loading} onClick={loadToday}>{loading ? "불러오는 중" : "오늘 환율 불러오기"}</button>
+      </>}
       <label className="field"><span>예산 (원, 선택)</span><input id="set-budget" className="input num" inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value.replace(/\D/g, ""))} /></label>
     </Sheet>
   );
