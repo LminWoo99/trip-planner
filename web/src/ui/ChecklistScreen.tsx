@@ -6,13 +6,15 @@ import { attempt } from "./toast";
 import { Sheet } from "./Sheet";
 
 const CATS = ["서류·결제", "옷", "전자기기", "세면·약", "기타"];
-const WHO = ["같이", "민우", "려진"];
+/** "같이" plus each person in the trip, by the name they use in it */
+const whoOptions = (names: readonly string[]) => ["같이", ...names.filter((n) => n && n !== "같이")];
 
 export function ChecklistScreen() {
   const { snapshot } = useApp();
   const [editing, setEditing] = useState<ChecklistItem | "new" | null>(null);
   const [who, setWho] = useState("전체");
   if (!snapshot) return null;
+  const WHO = whoOptions(snapshot.members.map((m) => m.displayName));
 
   const all = [...snapshot.checklist].sort((a, b) => a.order - b.order);
   const list = all.filter((c) => who === "전체" || c.who === who);
@@ -59,15 +61,17 @@ export function ChecklistScreen() {
         </div>
       </div>
       <button className="fab" aria-label="준비물 추가" onClick={() => setEditing("new")}><Plus className="icon" /></button>
-      {editing && <ChecklistSheet item={editing === "new" ? null : editing} nextOrder={Math.max(0, ...all.map((c) => c.order)) + 1} onClose={() => setEditing(null)} />}
+      {editing && <ChecklistSheet item={editing === "new" ? null : editing} who={WHO} nextOrder={Math.max(0, ...all.map((c) => c.order)) + 1} onClose={() => setEditing(null)} />}
     </>
   );
 }
 
-function ChecklistSheet({ item, nextOrder, onClose }: { item: ChecklistItem | null; nextOrder: number; onClose: () => void }) {
+function ChecklistSheet({ item, nextOrder, who: WHO, onClose }: { item: ChecklistItem | null; nextOrder: number; who: readonly string[]; onClose: () => void }) {
   const [text, setText] = useState(item?.text ?? "");
   const [cat, setCat] = useState(item?.cat ?? "기타");
   const [who, setWho] = useState(item?.who ?? "같이");
+  // an owner name from before (e.g. someone who left) stays pickable on that item
+  const options = item?.who && !WHO.includes(item.who) ? [...WHO, item.who] : WHO;
   const [memo, setMemo] = useState(item?.memo ?? "");
 
   async function save() {
@@ -82,7 +86,7 @@ function ChecklistSheet({ item, nextOrder, onClose }: { item: ChecklistItem | nu
     </>}>
       <label className="field"><span>이름</span><input id="check-text" className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 보조배터리" /></label>
       <div className="field"><span>분류</span><div className="chips">{CATS.map((c) => <button key={c} type="button" className="chip" aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>)}</div></div>
-      <div className="field"><span>담당</span><div className="chips">{WHO.map((w) => <button key={w} type="button" className="chip" aria-pressed={who === w} onClick={() => setWho(w)}>{w}</button>)}</div></div>
+      <div className="field"><span>담당</span><div className="chips">{options.map((w) => <button key={w} type="button" className="chip" aria-pressed={who === w} onClick={() => setWho(w)}>{w}</button>)}</div></div>
       <label className="field"><span>메모</span><input id="check-memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
     </Sheet>
   );

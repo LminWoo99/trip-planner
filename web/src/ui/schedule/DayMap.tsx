@@ -14,6 +14,10 @@ const PIN = "#5b4fe0";
 
 const SAPA = { lat: 22.3364, lng: 103.8438 };
 
+// Every new google.maps.Map is a billed map load. Coming back to the schedule tab remounts this
+// component, so one map (and its element) is kept for the whole app session and moved into place.
+let shared: { map: google.maps.Map; div: HTMLDivElement } | null = null;
+
 export function DayMap({ stops, note, terrain }: { stops: readonly MapStop[]; note: string; terrain: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -27,14 +31,25 @@ export function DayMap({ stops, note, terrain }: { stops: readonly MapStop[]; no
     if (!hasGoogleKey()) return;
     if (!navigator.onLine) { setStatus("offline"); return; }
     let alive = true;
+    const host = el.current;
     loadMaps().then(({ Map }) => {
-      if (!alive || !el.current) return;
-      map.current = new Map(el.current, {
-        center: SAPA, zoom: 13, disableDefaultUI: true, gestureHandling: "cooperative", clickableIcons: false,
-      });
+      if (!alive || !host) return;
+      if (!shared) {
+        const div = document.createElement("div");
+        div.style.cssText = "position:absolute;inset:0";
+        shared = { div, map: new Map(div, { center: SAPA, zoom: 13, disableDefaultUI: true, gestureHandling: "cooperative", clickableIcons: false }) };
+      }
+      host.appendChild(shared.div);
+      map.current = shared.map;
       setStatus("ready");
     }).catch(() => alive && setStatus("offline"));
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      // the shared map outlives this screen: take this screen's pins off it
+      overlays.current.forEach((o) => o.setMap(null));
+      overlays.current = [];
+      if (shared && host?.contains(shared.div)) host.removeChild(shared.div);
+    };
   }, []);
 
   useEffect(() => {
