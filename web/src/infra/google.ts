@@ -87,6 +87,38 @@ export class PlaceSearchSession {
   }
 }
 
+export interface RatedPlace extends FoundPlace {
+  readonly rating: number;
+  readonly reviews: number;
+}
+
+/**
+ * Of a few named candidates, the best-reviewed one on Google: highest rating among places with
+ * enough reviews to trust (30+), falling back to the most reviewed. One text search per candidate.
+ */
+export async function bestRated(names: readonly string[], city: string): Promise<RatedPlace | null> {
+  const places = await loadPlaces();
+  const found = await Promise.all(names.slice(0, 3).map(async (name) => {
+    try {
+      const { places: hits } = await places.Place.searchByText({
+        textQuery: name,
+        fields: ["displayName", "formattedAddress", "location", "googleMapsURI", "primaryType", "rating", "userRatingCount"],
+        locationBias: biasFor(city),
+        language: "ko",
+        maxResultCount: 1,
+      });
+      const p = hits[0];
+      const f = p ? toFound(p) : null;
+      return f ? { ...f, rating: p.rating ?? 0, reviews: p.userRatingCount ?? 0 } : null;
+    } catch {
+      return null;
+    }
+  }));
+  const ok = found.filter((p): p is RatedPlace => !!p);
+  const trusted = ok.filter((p) => p.reviews >= 30).sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+  return trusted[0] ?? ok.sort((a, b) => b.reviews - a.reviews)[0] ?? null;
+}
+
 /** Best match for free text, used to fill in places that were imported without coordinates. */
 export async function findPlace(query: string, city: string): Promise<FoundPlace | null> {
   const places = await loadPlaces();

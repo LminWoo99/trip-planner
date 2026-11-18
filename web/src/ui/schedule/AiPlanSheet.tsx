@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, CircleAlert, MapPin } from "lucide-react";
 import { useApp } from "../../app/store";
 import { aiPlan, applyPlan, type PlanItem } from "../../infra/pocketbase";
-import { findPlace, hasGoogleKey } from "../../infra/google";
+import { bestRated, findPlace, hasGoogleKey } from "../../infra/google";
 import { Sheet } from "../Sheet";
 import { shortDay } from "../format";
 import { toast } from "../toast";
@@ -31,6 +31,14 @@ export function AiPlanSheet({ onClose }: { onClose: () => void }) {
         const rows = await Promise.all(d.items.map(async (it, i): Promise<Row> => {
           if (!it.place || !hasGoogleKey() || !navigator.onLine) return { ...it, key: `${d.n}-${i}`, on: true, found: "none" };
           try {
+            // recommended restaurants and cafes: keep the best-rated of the AI's picks (abroad, where Google has the reviews)
+            if (it.candidates?.length && snapshot!.trip.region === "abroad") {
+              const best = await bestRated(it.candidates, day.city);
+              if (best) {
+                const score = `Google 평점 ${best.rating.toFixed(1)} (${best.reviews.toLocaleString("ko-KR")})`;
+                return { ...it, place: best.name, placeId: best.placeId, lat: best.lat, lng: best.lng, memo: [score, it.memo].filter(Boolean).join(" · "), key: `${d.n}-${i}`, on: true, found: "yes" };
+              }
+            }
             const p = await findPlace(it.place, day.city);
             return p ? { ...it, place: p.name, placeId: p.placeId, lat: p.lat, lng: p.lng, key: `${d.n}-${i}`, on: true, found: "yes" }
               : { ...it, key: `${d.n}-${i}`, on: false, found: "no" };
@@ -60,7 +68,7 @@ export function AiPlanSheet({ onClose }: { onClose: () => void }) {
   async function apply(m: "append" | "replace") {
     setBusy(true);
     try {
-      const { added } = await applyPlan(snapshot!.trip.id, m, chosen.map((d) => ({ day: d.day, items: d.rows.map(({ key: _k, on: _o, found, ...it }) => (found === "no" ? { ...it, place: "" } : it)) })));
+      const { added } = await applyPlan(snapshot!.trip.id, m, chosen.map((d) => ({ day: d.day, items: d.rows.map(({ key: _k, on: _o, found, candidates: _c, ...it }) => (found === "no" ? { ...it, place: "" } : it)) })));
       toast(m === "replace" ? `일정을 바꿨어요. 원래 일정은 되돌리기 기록에 있어요` : `${added}개 넣었어요`);
       onClose();
     } catch (e) {
@@ -76,7 +84,8 @@ export function AiPlanSheet({ onClose }: { onClose: () => void }) {
       <Sheet title="글로 일정 넣기" onClose={onClose} footer={<button className="btn primary" disabled={step === "thinking" || text.trim().length < 4} onClick={split}>{step === "thinking" ? "나누는 중이에요" : "일정으로 나누기"}</button>}>
         <p className="sheet-note">날짜별로 할 일을 편하게 쓰면 AI가 일정으로 나눠요. 시간이나 장소를 쓰면 같이 넣어요.</p>
         <textarea id="ai-plan-text" className="input ai-text" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} aria-label="여행 계획"
-          placeholder={"예: 첫째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜. 둘째 날 아침에 사파로 이동해서 깟깟마을"} />
+          placeholder={"예: 첫째 날 오후 3시쯤 호안끼엠 호수 산책하고 저녁은 분짜.\n2일차는 알아서 추천해 줘\n3일차 오후는 맛집이랑 카페 위주로 추천해 줘"} />
+        <p className="sheet-note" style={{ marginTop: 6 }}>"알아서 추천해 줘"라고 쓰면 많이 가는 코스를 찾아 짜고, 식당·카페는 평점 높은 곳으로 골라요. 30초~1분쯤 걸려요.</p>
         <div className="seg2" role="radiogroup" aria-label="넣는 방식">
           <button role="radio" aria-checked={mode === "append"} onClick={() => setMode("append")}>기존 일정 뒤에 붙이기</button>
           <button role="radio" aria-checked={mode === "replace"} onClick={() => setMode("replace")}>그 날 일정 바꾸기</button>
